@@ -159,13 +159,10 @@ sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
     // There must be at least one byte.
     assert(byte_count);
 
-    out_count = sdnv_max_bytes(byte_count);
-
-    // Notice that 1 <= byte_count - skip <= out_count.
     skip = sdnv_skip_bytes(bytes, byte_count);
+    // Notice that 1 <= byte_count - skip <= out_count.
+    out_count = sdnv_max_bytes(byte_count - skip);
     compact = sdnv_compact_msb(bytes[skip], byte_count - skip);
-
-    out_count -= skip;
 
     // Note that out_count is always greater than zero before this test because
     // skip < byte_count and byte_count < out_count.
