@@ -131,6 +131,11 @@ sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
     // The mask to separate the continue bit from the data.
     enum { DATA_MASK = CONTINUE - 1 };
 
+    static const uint8_t MASKS[] = {
+        0X7F, 0X3F, 0X1F, 0x0F,
+        0x07, 0x03, 0x01, 0x00,
+    };
+
     // Number of bytes in the output SDNV.
     size_t out_count;
     // Number of most-significant bytes to skip in the input.
@@ -142,15 +147,11 @@ sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
     // The output SDNV itself.
     sdnv_t *out;
 
-    // How to mask the high bits and low bits.
-    uint8_t mask;
     // The high bits of the current byte and the low bits of the previous byte.
     uint8_t hi, lo;
 
     // The current bit index.
     size_t bit;
-    // The inverse bit index (7 - bit).
-    size_t ibit;
 
     // The current input and output byte.
     size_t i, j;
@@ -189,22 +190,17 @@ sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
 
     // Loop until most-significant output byte.
     while (j) {
-        ibit = 7 - bit;
-
-        mask = 1 << ibit;
-        mask -= 1;
-
         // Mask off the bits to use from the current input byte and put them
         // where they should appear in the output byte.
-        hi = bytes[i] & mask;
+        hi = bytes[i] & MASKS[bit];
         hi <<= bit;
 
         // Build the current output byte.
         out->bytes[j] = CONTINUE | hi | lo;
 
         // Save the bits that weren't used for the next iteration.
-        lo = bytes[i] & ~mask;
-        lo >>= ibit;
+        lo = bytes[i] & ~MASKS[bit];
+        lo >>= 7 - bit;
 
         // On every 8 iterations, no bits of the current input byte are used, so
         // perform another iteration over the current input byte to get its bits.
