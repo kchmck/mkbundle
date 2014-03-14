@@ -1,6 +1,12 @@
 BINARY = mkbundle
 
-SRC = mkbundle.c sdnv.c strbuf.c
+SRC = \
+      block.c \
+      bundle.c \
+      mkbundle.c \
+      sdnv.c \
+      strbuf.c \
+
 OBJ = $(SRC:.c=.o)
 
 ALL_CFLAGS += -Wall -Wextra -std=c11 -pipe
