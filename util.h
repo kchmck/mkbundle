@@ -6,12 +6,12 @@
 #include <assert.h>
 #include <inttypes.h>
 
-#define WRITE(buf, len) do { \
-    size_t ret = fwrite((buf), sizeof(uint8_t), (len), stream); \
+#define WRITE(stream, buf, len) do { \
+    size_t ret = fwrite((buf), sizeof(uint8_t), (len), (stream)); \
     assert(ret == (len)); \
 } while (0)
 
-#define WRITE_SDNV(sdnv) WRITE((sdnv)->bytes, (sdnv)->len)
+#define WRITE_SDNV(stream, sdnv) WRITE(stream, (sdnv)->bytes, (sdnv)->len)
 
 // TODO: check if on big endian and make these noops.
 static inline uint32_t swap32(uint32_t x) {

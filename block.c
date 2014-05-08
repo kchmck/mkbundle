@@ -33,8 +33,8 @@ void block_build(block_t *b) {
 }
 
 void block_write(const block_t *b, FILE *stream) {
-    WRITE(&b->params->type, sizeof(b->params->type));
-    WRITE_SDNV(b->flags);
-    WRITE_SDNV(b->length);
-    WRITE(b->params->data, b->params->len);
+    WRITE(stream, &b->params->type, sizeof(b->params->type));
+    WRITE_SDNV(stream, b->flags);
+    WRITE_SDNV(stream, b->length);
+    WRITE(stream, b->params->data, b->params->len);
 }
