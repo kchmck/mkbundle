@@ -16,6 +16,16 @@
 // all copies or substantial portions of the Software.
 //
 
+// Available parameters:
+//
+//     HTABLE_NAME
+//     HTABLE_KEY_TYPE
+//     HTABLE_DATA_TYPE
+//     HTABLE_HASH_KEY
+//     HTABLE_DEFAULT_SIZE
+//     HTABLE_FIXED
+//     HTABLE_STATIC
+
 // Example usage:
 //
 //     #define HTABLE_COMMON
@@ -27,7 +37,7 @@
 //     #define HTABLE_KEY_TYPE const key_t
 //     #define HTABLE_DATA_TYPE data_t
 //     #define HTABLE_HASH_KEY(key) my_hash(key)
-//     #define HTABLE_DEFAULT_SIZE (1 << 10)
+//     #define HTABLE_DEFAULT_SIZE 1 << 10
 //     #include "htable.h"
 //     #include "htable.c"
 //
@@ -46,6 +56,7 @@
 #undef HTABLE_DATA_TYPE
 #undef HTABLE_HASH_KEY
 #undef HTABLE_DEFAULT_SIZE
+#undef HTABLE_FIXED
 #undef HTABLE_STATIC
 
 // Undefine H file functions
@@ -61,6 +72,7 @@
 #ifndef HTABLE_H_COMMON
 #define HTABLE_H_COMMON
 
+#include <assert.h>
 #include <inttypes.h>
 #include <stddef.h>
 
@@ -76,9 +88,10 @@ typedef uint_fast32_t htable_hash_t;
       !defined HTABLE_DEFAULT_SIZE
 #error "HTABLE_NAME, HTABLE_DATA_TYPE, HTABLE_KEY_TYPE, HTABLE_HASH_KEY, " \
        "and HTABLE_DEFAULT_SIZE must be defined"
-#elif HTABLE_DEFAULT_SIZE & (HTABLE_DEFAULT_SIZE - 1)
-#error "HTABLE_DEFAULT_SIZE must be a power of two"
 #else
+
+static_assert(!(HTABLE_DEFAULT_SIZE & (HTABLE_DEFAULT_SIZE - 1)),
+    "HTABLE_DEFAULT_SIZE must be a power of 2");
 
 // Paste suffix to the end of HTABLE_NAME. This requires two levels of
 // expansion.
@@ -95,12 +108,20 @@ typedef uint_fast32_t htable_hash_t;
 #define HTABLE_ADD NAME(add)
 #define HTABLE_REMOVE NAME(remove)
 
+#ifdef HTABLE_FIXED
 #define HTABLE_PAIR_T NAME(pair_t)
 #define HTABLE_ADD_PAIRS NAME(add_pairs)
+#endif
 
 #define HTABLE_ITER_T NAME(iter_t)
 #define HTABLE_ITER_INIT NAME(iter_init)
 #define HTABLE_ITER_NEXT NAME(iter_next)
+
+#if defined HTABLE_STATIC
+#define HTABLE_FN static
+#else
+#define HTABLE_FN
+#endif
 
 typedef struct {
   htable_hash_t hash;
@@ -109,7 +130,7 @@ typedef struct {
 } HTABLE_SLOT_T;
 
 typedef struct {
-#if !defined HTABLE_STATIC
+#if !defined HTABLE_FIXED
   size_t size;
   htable_hash_t mask;
   HTABLE_SLOT_T slots[];
@@ -118,13 +139,16 @@ typedef struct {
 #endif
 } HTABLE_T;
 
-#if !defined HTABLE_STATIC
+#if !defined HTABLE_FIXED
 // Allocate and initialized the table.
+HTABLE_FN
 void HTABLE_INIT(HTABLE_T **htp);
 // Deallocate the table. This doesn't deallocate the data in the individual
 // slots! Use an iterator to do that before destroying the table.
+HTABLE_FN
 void HTABLE_DESTROY(HTABLE_T *ht);
 // Add data for key: O(1).
+HTABLE_FN
 HTABLE_DATA_TYPE *HTABLE_ADD(HTABLE_T **htp, const HTABLE_KEY_TYPE key);
 #else
 typedef struct {
@@ -132,13 +156,17 @@ typedef struct {
   HTABLE_DATA_TYPE data;
 } HTABLE_PAIR_T;
 
+HTABLE_FN
 HTABLE_DATA_TYPE *HTABLE_ADD(HTABLE_T *ht, const HTABLE_KEY_TYPE key);
+HTABLE_FN
 void HTABLE_ADD_PAIRS(HTABLE_T *ht, const HTABLE_PAIR_T *pairs, size_t npairs);
 #endif
 
 // Lookup data for key: O(1). Return NULL if no data matches key.
+HTABLE_FN
 HTABLE_DATA_TYPE *HTABLE_LOOKUP(HTABLE_T *ht, const HTABLE_KEY_TYPE key);
 // Remove data for key: O(1). Return NULL if no data matches key.
+HTABLE_FN
 HTABLE_DATA_TYPE *HTABLE_REMOVE(HTABLE_T *ht, const HTABLE_KEY_TYPE key);
 
 typedef struct {
@@ -147,8 +175,10 @@ typedef struct {
 } HTABLE_ITER_T;
 
 // Initialize the iterator with a hash table.
+HTABLE_FN
 void HTABLE_ITER_INIT(HTABLE_ITER_T *it, HTABLE_T *ht);
 // Get the next item from the iterator.
+HTABLE_FN
 HTABLE_DATA_TYPE *HTABLE_ITER_NEXT(HTABLE_ITER_T *it);
 
 #endif

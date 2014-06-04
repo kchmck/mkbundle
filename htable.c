@@ -22,12 +22,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined HTABLE_STATIC
-#define HTABLE_SIZE(ht) HTABLE_DEFAULT_SIZE
-#define HTABLE_MASK(ht) (HTABLE_DEFAULT_SIZE - 1)
+#if defined HTABLE_FIXED
+#define HTABLE_SIZE(ht) (HTABLE_DEFAULT_SIZE)
+#define HTABLE_MASK(ht) ((HTABLE_DEFAULT_SIZE) - 1)
 #else
-#define HTABLE_SIZE(ht) (ht->size)
-#define HTABLE_MASK(ht) (ht->mask)
+#define HTABLE_SIZE(ht) ht->size
+#define HTABLE_MASK(ht) ht->mask
 #endif
 
 #ifndef HTABLE_C_COMMON
@@ -67,16 +67,16 @@ typedef struct {
 
 #endif
 
-#if !defined HTABLE_STATIC
-// Allocate a table to hold size slots.
+#if !defined HTABLE_FIXED
+// Allocate a table to hold the given number of slots.
 static HTABLE_T *HTABLE_ALLOC(HTABLE_T *ht, size_t size) {
-  // Size in bytes of all slots
-  size_t nbytes;
-
-  // Size must be greater than HTABLE_BUCKET_SIZE.
+  // Size must be greater than HTABLE_BUCKET_SIZE, so the table can hold at
+  // least one full bucket.
   assert(size >= HTABLE_BUCKET_SIZE);
 
-  nbytes = size * sizeof(HTABLE_SLOT_T);
+  // Size in bytes of all slots
+  size_t nbytes = size * sizeof(HTABLE_SLOT_T);
+
   ht = realloc(ht, sizeof(HTABLE_T) + nbytes);
   ht->size = size;
 
@@ -97,7 +97,7 @@ static HTABLE_T *HTABLE_ALLOC(HTABLE_T *ht, size_t size) {
 }
 
 void HTABLE_INIT(HTABLE_T **htp) {
-  *htp = HTABLE_ALLOC(NULL, HTABLE_DEFAULT_SIZE);
+  *htp = HTABLE_ALLOC(NULL, (HTABLE_DEFAULT_SIZE));
 }
 
 void HTABLE_DESTROY(HTABLE_T *ht) {
@@ -105,17 +105,15 @@ void HTABLE_DESTROY(HTABLE_T *ht) {
 }
 #endif
 
-// Search for a slot that hashes to key starting at the hash bucket.
+// Search for a slot that hashes to the given key starting at the hash bucket.
 static bool HTABLE_SEARCH_SLOTS(htable_cursor_t *c, const HTABLE_T *ht,
                                 const HTABLE_KEY_TYPE key)
 {
   // Forward bitmap of hash bucket
   htable_fwd_t fwd;
-  // Hash of key
-  htable_hash_t h;
 
   // Find the hash bucket.
-  h = HTABLE_HASH_KEY(key);
+  htable_hash_t h = HTABLE_HASH_KEY(key);
   c->bucket = HTABLE_CLAMP(h);
 
   for (fwd = ht->slots[c->bucket].fwd, c->slot = c->bucket; fwd;
@@ -245,7 +243,7 @@ HTABLE_DATA_TYPE *HTABLE_ADD_HASH(HTABLE_T *ht, htable_hash_t h) {
   return &ht->slots[dest.slot].data;
 }
 
-#if !defined HTABLE_STATIC
+#if !defined HTABLE_FIXED
 // Rehash ht into nht: O(n). Return true if rehash was successful and false if
 // not.
 static bool HTABLE_REHASH(HTABLE_T *ht, HTABLE_T *nht) {
@@ -307,11 +305,20 @@ HTABLE_DATA_TYPE *HTABLE_ADD(HTABLE_T *ht, const HTABLE_KEY_TYPE key) {
   return HTABLE_ADD_HASH(ht, HTABLE_HASH_KEY(key));
 }
 
-void HTABLE_ADD_PAIRS(HTABLE_T *ht, const HTABLE_PAIR_T *pairs, size_t npairs) {
+bool HTABLE_ADD_PAIRS(HTABLE_T *ht, const HTABLE_PAIR_T *pairs, size_t npairs) {
   const HTABLE_PAIR_T *pair;
+  HTABLE_DATA_TYPE *data;
 
-  for (size_t i = 0; pair = &pairs[i], i < npairs; i += 1)
-    *HTABLE_ADD(ht, pair->key) = pair->data;
+  for (size_t i = 0; pair = &pairs[i], i < npairs; i += 1) {
+    data = HTABLE_ADD(ht, pair->key);
+
+    if (!data)
+      return false;
+
+    *data = pair->data;
+  }
+
+  return true;
 }
 #endif
 
