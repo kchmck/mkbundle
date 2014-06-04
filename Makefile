@@ -2,7 +2,7 @@ BINARY = mkbundle
 
 SRC = \
       block.c \
-      bundle.c \
+      primary-block.c \
       mkbundle.c \
       sdnv.c \
       strbuf.c \

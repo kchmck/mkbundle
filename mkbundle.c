@@ -11,7 +11,7 @@
 #endif
 
 #include "block.h"
-#include "bundle.h"
+#include "primary-block.h"
 #include "sdnv.h"
 #include "strbuf.h"
 

@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 #include "block.h"
-#include "bundle.h"
+#include "primary-block.h"
 #include "util.h"
 #include "sdnv.h"
 
