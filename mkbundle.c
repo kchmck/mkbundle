@@ -257,9 +257,9 @@ int main(int argc, char **argv) {
     if (!sep) \
         DIEF("invalid " desc " EID '%s'", optarg); \
     *sep = 0; \
-    ADD_EID(&((eid)->scheme), optarg, sep - optarg); \
+    ADD_EID(&(eid)->scheme, optarg, sep - optarg); \
     sep += 1; \
-    ADD_EID(&((eid)->ssp), sep, strlen(sep)); \
+    ADD_EID(&(eid)->ssp, sep, strlen(sep)); \
 } while (0)
 
         case OPT_DEST:
