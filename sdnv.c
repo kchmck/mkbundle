@@ -16,6 +16,8 @@
 // pointer at it.
 static void sdnv_init(sdnv_t **sdnv, size_t byte_count) {
     *sdnv = malloc(sizeof(sdnv_t) + byte_count * sizeof(uint8_t));
+    assert(*sdnv);
+
     **sdnv = (sdnv_t) {
         .len = byte_count,
     };
