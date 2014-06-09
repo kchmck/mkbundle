@@ -160,6 +160,26 @@ static void sdnv_params_init(sdnv_params_t *p, const uint8_t *bytes,
     };
 }
 
+size_t sdnv_len(const uint8_t *bytes, size_t byte_count) {
+    sdnv_params_t params;
+    sdnv_params_init(&params, bytes, byte_count);
+
+    return params.len;
+}
+
+#ifdef MKBUNDLE_TEST
+TEST test_sdnv_len(void) {
+    ASSERT_EQ(sdnv_len((uint8_t[]){0xff}, 1), 2);
+    ASSERT_EQ(sdnv_len((uint8_t[]){0x7f}, 1), 1);
+    ASSERT_EQ(sdnv_len((uint8_t[])
+        {0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00,
+         0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff}, 16), 18);
+    ASSERT_EQ(sdnv_len((uint8_t[]){0x00, 0x00, 0x00, 0xff}, 4), 2);
+
+    PASS();
+}
+#endif
+
 sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
     // The value of the "continue" bit.
     enum { CONTINUE = 1 << 7 };
@@ -412,5 +432,6 @@ SUITE(sdnv_suite) {
     RUN_TEST(test_skip_bytes);
     RUN_TEST(test_compact_msb);
     RUN_TEST(test_sdnv_encode);
+    RUN_TEST(test_sdnv_len);
 }
 #endif

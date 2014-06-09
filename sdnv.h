@@ -14,6 +14,10 @@ typedef struct {
     uint8_t bytes[];
 } sdnv_t;
 
+size_t sdnv_len(const uint8_t *bytes, size_t byte_count);
+
+#define SDNV_LEN(x) sdnv_len((const uint8_t *) &(x), sizeof(x))
+
 // Encode the given bytes into an SDNV.
 sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count);
 
