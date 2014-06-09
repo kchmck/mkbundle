@@ -130,8 +130,6 @@ TEST test_sdnv_compact_msb() {
 sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
     // The value of the "continue" bit.
     enum { CONTINUE = 1 << 7 };
-    // The mask to separate the continue bit from the data.
-    enum { DATA_MASK = CONTINUE - 1 };
 
     static const uint8_t MASKS[] = {
         0X7F, 0X3F, 0X1F, 0x0F,
@@ -224,7 +222,7 @@ sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
         out->bytes[0] |= bytes[i] << bit;
 
     // Unset the continue bit on the last output byte.
-    out->bytes[out_count - 1] &= DATA_MASK;
+    out->bytes[out_count - 1] &= ~CONTINUE;
 
     return out;
 }
