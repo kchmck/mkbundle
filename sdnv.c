@@ -29,17 +29,17 @@ void sdnv_destroy(sdnv_t *b) {
 
 // Calculate the upper bound on the number of bytes needed to encode the given
 // number of bytes with no compaction. Copied from RFC 5050.
-static inline size_t sdnv_max_bytes(size_t byte_count) {
+static inline size_t max_bytes(size_t byte_count) {
     // Take the ceiling of (N * 8) / 7.
     return (byte_count * 8 + 7 - 1) / 7;
 }
 
 #ifdef MKBUNDLE_TEST
-TEST test_sdnv_max_bytes() {
-    ASSERT_EQ(sdnv_max_bytes(1), 2);
-    ASSERT_EQ(sdnv_max_bytes(7), 8);
-    ASSERT_EQ(sdnv_max_bytes(8), 10);
-    ASSERT_EQ(sdnv_max_bytes(128), 147);
+TEST test_max_bytes() {
+    ASSERT_EQ(max_bytes(1), 2);
+    ASSERT_EQ(max_bytes(7), 8);
+    ASSERT_EQ(max_bytes(8), 10);
+    ASSERT_EQ(max_bytes(128), 147);
 
     PASS();
 }
@@ -47,7 +47,7 @@ TEST test_sdnv_max_bytes() {
 
 // Find the first non-zero byte in the given bytes and return its index. Return
 // the index of the last byte if all bytes are zero.
-static size_t sdnv_skip_bytes(const uint8_t *bytes, size_t byte_count) {
+static size_t skip_bytes(const uint8_t *bytes, size_t byte_count) {
     assert(byte_count > 0);
 
     for (size_t skip = 0; skip < byte_count; skip += 1)
@@ -58,11 +58,11 @@ static size_t sdnv_skip_bytes(const uint8_t *bytes, size_t byte_count) {
 }
 
 #ifdef MKBUNDLE_TEST
-TEST test_sdnv_skip_bytes() {
-    ASSERT_EQ(sdnv_skip_bytes((uint8_t[]){0x00}, 1), 0);
-    ASSERT_EQ(sdnv_skip_bytes((uint8_t[]){0x01}, 1), 0);
-    ASSERT_EQ(sdnv_skip_bytes((uint8_t[]){0x00, 0x01}, 2), 1);
-    ASSERT_EQ(sdnv_skip_bytes((uint8_t[]){0x01, 0x00}, 2), 0);
+TEST test_skip_bytes() {
+    ASSERT_EQ(skip_bytes((uint8_t[]){0x00}, 1), 0);
+    ASSERT_EQ(skip_bytes((uint8_t[]){0x01}, 1), 0);
+    ASSERT_EQ(skip_bytes((uint8_t[]){0x00, 0x01}, 2), 1);
+    ASSERT_EQ(skip_bytes((uint8_t[]){0x01, 0x00}, 2), 0);
 
     PASS();
 }
@@ -70,7 +70,7 @@ TEST test_sdnv_skip_bytes() {
 
 // Determine if the given most significant byte can be encoded with only one
 // byte instead of two based the given number of input bytes.
-static bool sdnv_compact_msb(uint8_t first_byte, size_t byte_count) {
+static bool compact_msb(uint8_t first_byte, size_t byte_count) {
     // These mask off increasing portions of most-significant bite.
     static const uint8_t MASKS[CHAR_BIT] = {
         0x80, 0xC0, 0xE0, 0xF0,
@@ -97,35 +97,68 @@ static bool sdnv_compact_msb(uint8_t first_byte, size_t byte_count) {
 }
 
 #ifdef MKBUNDLE_TEST
-TEST test_sdnv_compact_msb() {
-    ASSERT(sdnv_compact_msb(0x00, 1));
-    ASSERT(sdnv_compact_msb(0x40, 1));
-    ASSERT(sdnv_compact_msb(0x70, 1));
+TEST test_compact_msb() {
+    ASSERT(compact_msb(0x00, 1));
+    ASSERT(compact_msb(0x40, 1));
+    ASSERT(compact_msb(0x70, 1));
 
-    ASSERT(sdnv_compact_msb(0x7f, 1));
-    ASSERT(sdnv_compact_msb(0x3f, 2));
-    ASSERT(sdnv_compact_msb(0x1f, 3));
-    ASSERT(sdnv_compact_msb(0x0f, 4));
-    ASSERT(sdnv_compact_msb(0x07, 5));
-    ASSERT(sdnv_compact_msb(0x03, 6));
-    ASSERT(sdnv_compact_msb(0x01, 7));
-    ASSERT(sdnv_compact_msb(0x00, 8));
+    ASSERT(compact_msb(0x7f, 1));
+    ASSERT(compact_msb(0x3f, 2));
+    ASSERT(compact_msb(0x1f, 3));
+    ASSERT(compact_msb(0x0f, 4));
+    ASSERT(compact_msb(0x07, 5));
+    ASSERT(compact_msb(0x03, 6));
+    ASSERT(compact_msb(0x01, 7));
+    ASSERT(compact_msb(0x00, 8));
 
-    ASSERT(!sdnv_compact_msb(0xff, 1));
-    ASSERT(!sdnv_compact_msb(0x7f, 2));
-    ASSERT(!sdnv_compact_msb(0x3f, 3));
-    ASSERT(!sdnv_compact_msb(0x1f, 4));
-    ASSERT(!sdnv_compact_msb(0x0f, 5));
-    ASSERT(!sdnv_compact_msb(0x07, 6));
-    ASSERT(!sdnv_compact_msb(0x03, 7));
-    ASSERT(!sdnv_compact_msb(0x01, 8));
+    ASSERT(!compact_msb(0xff, 1));
+    ASSERT(!compact_msb(0x7f, 2));
+    ASSERT(!compact_msb(0x3f, 3));
+    ASSERT(!compact_msb(0x1f, 4));
+    ASSERT(!compact_msb(0x0f, 5));
+    ASSERT(!compact_msb(0x07, 6));
+    ASSERT(!compact_msb(0x03, 7));
+    ASSERT(!compact_msb(0x01, 8));
 
-    ASSERT(sdnv_compact_msb(0x7f, 9));
-    ASSERT(sdnv_compact_msb(0x00, 16));
+    ASSERT(compact_msb(0x7f, 9));
+    ASSERT(compact_msb(0x00, 16));
 
     PASS();
 }
 #endif
+
+typedef struct {
+    // Whether to compact the most-significant byte of the input into one byte
+    // instead of two.
+    bool compact;
+    // Number of bytes needed to encode the given input.
+    size_t len;
+} sdnv_params_t;
+
+static void sdnv_params_init(sdnv_params_t *p, const uint8_t *bytes,
+                             size_t byte_count)
+{
+    // Number of most-significant bytes to skip in the input.
+    size_t skip = skip_bytes(bytes, byte_count);
+    // Notice that 1 <= byte_count - skip <= len.
+    size_t len = max_bytes(byte_count - skip);
+    bool compact = compact_msb(bytes[skip], byte_count - skip);
+
+    // Note that len is always greater than zero before this test because
+    // skip < byte_count <= len.
+    if (compact)
+        len -= 1;
+
+    // Even if all input bytes are zero, one output byte is still needed to
+    // encode that.
+    if (!len)
+        len = 1;
+
+    *p = (sdnv_params_t) {
+        .compact = compact,
+        .len = len,
+    };
+}
 
 sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
     // The value of the "continue" bit.
@@ -136,28 +169,12 @@ sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
         0x07, 0x03, 0x01, 0x00,
     };
 
-    // Number of most-significant bytes to skip in the input.
-    size_t skip = sdnv_skip_bytes(bytes, byte_count);
-    // Number of bytes in the output SDNV. Notice that 1 <= byte_count - skip <=
-    // out_count.
-    size_t out_count = sdnv_max_bytes(byte_count - skip);
-    // Whether to compact the most-significant byte of the input into one byte
-    // instead of two.
-    bool compact = sdnv_compact_msb(bytes[skip], byte_count - skip);
-
-    // Note that out_count is always greater than zero before this test because
-    // skip < byte_count and byte_count < out_count.
-    if (compact)
-        out_count -= 1;
-
-    // Even if all input bytes are zero, one output byte is still needed to
-    // encode that.
-    if (!out_count)
-        out_count = 1;
+    sdnv_params_t params;
+    sdnv_params_init(&params, bytes, byte_count);
 
     // The output SDNV itself.
     sdnv_t *out;
-    sdnv_init(&out, out_count);
+    sdnv_init(&out, params.len);
 
     // The current bit index. Start on the most significant bit.
     size_t bit = 0;
@@ -170,7 +187,7 @@ sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
     // The current input and output byte. Iterate from least-significant to
     // most-significant byte.
     size_t i = byte_count - 1;
-    size_t j = out_count - 1;
+    size_t j = params.len - 1;
 
     // Loop until most-significant output byte.
     while (j) {
@@ -205,11 +222,11 @@ sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
     // If the most-significant non-zero input byte was compacted, then it wasn't
     // visited in the loop above, so use its bits to fill the remaining space in
     // the most-significant output byte.
-    if (compact)
+    if (params.compact)
         out->bytes[0] |= bytes[i] << bit;
 
     // Unset the continue bit on the last output byte.
-    out->bytes[out_count - 1] &= ~CONTINUE;
+    out->bytes[params.len - 1] &= ~CONTINUE;
 
     return out;
 }
@@ -391,9 +408,9 @@ TEST test_sdnv_encode() {
 
 #ifdef MKBUNDLE_TEST
 SUITE(sdnv_suite) {
-    RUN_TEST(test_sdnv_max_bytes);
-    RUN_TEST(test_sdnv_skip_bytes);
-    RUN_TEST(test_sdnv_compact_msb);
+    RUN_TEST(test_max_bytes);
+    RUN_TEST(test_skip_bytes);
+    RUN_TEST(test_compact_msb);
     RUN_TEST(test_sdnv_encode);
 }
 #endif
