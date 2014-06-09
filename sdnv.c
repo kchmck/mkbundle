@@ -136,33 +136,14 @@ sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
         0x07, 0x03, 0x01, 0x00,
     };
 
-    // Number of bytes in the output SDNV.
-    size_t out_count;
     // Number of most-significant bytes to skip in the input.
-    size_t skip;
+    size_t skip = sdnv_skip_bytes(bytes, byte_count);
+    // Number of bytes in the output SDNV. Notice that 1 <= byte_count - skip <=
+    // out_count.
+    size_t out_count = sdnv_max_bytes(byte_count - skip);
     // Whether to compact the most-significant byte of the input into one byte
     // instead of two.
-    bool compact;
-
-    // The output SDNV itself.
-    sdnv_t *out;
-
-    // The high bits of the current byte and the low bits of the previous byte.
-    uint8_t hi, lo;
-
-    // The current bit index.
-    size_t bit;
-
-    // The current input and output byte.
-    size_t i, j;
-
-    // There must be at least one byte.
-    assert(byte_count);
-
-    skip = sdnv_skip_bytes(bytes, byte_count);
-    // Notice that 1 <= byte_count - skip <= out_count.
-    out_count = sdnv_max_bytes(byte_count - skip);
-    compact = sdnv_compact_msb(bytes[skip], byte_count - skip);
+    bool compact = sdnv_compact_msb(bytes[skip], byte_count - skip);
 
     // Note that out_count is always greater than zero before this test because
     // skip < byte_count and byte_count < out_count.
@@ -174,16 +155,22 @@ sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
     if (!out_count)
         out_count = 1;
 
+    // The output SDNV itself.
+    sdnv_t *out;
     sdnv_init(&out, out_count);
 
-    // Start on the most significant bit.
-    bit = 0;
-    // There is no previous byte.
-    lo = 0;
+    // The current bit index. Start on the most significant bit.
+    size_t bit = 0;
 
-    // Iterate from least-significant to most-significant byte.
-    i = byte_count - 1;
-    j = out_count - 1;
+    // The high bits of the current byte.
+    uint8_t hi;
+    // The low bits of the previous byte.
+    uint8_t lo = 0;
+
+    // The current input and output byte. Iterate from least-significant to
+    // most-significant byte.
+    size_t i = byte_count - 1;
+    size_t j = out_count - 1;
 
     // Loop until most-significant output byte.
     while (j) {
