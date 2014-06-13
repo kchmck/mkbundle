@@ -83,19 +83,14 @@ void bundle_destroy(bundle_t *b) {
 }
 
 void bundle_write(const bundle_t *b, FILE *stream) {
-#define WRITE_EID(eid) do { \
-    WRITE_SDNV(stream, (eid)->scheme); \
-    WRITE_SDNV(stream, (eid)->ssp); \
-} while(0)
-
     WRITE(stream, &b->params->version, sizeof(b->params->version));
     WRITE_SDNV(stream, b->flags);
     WRITE_SDNV(stream, b->length);
 
-    WRITE_EID(&b->dest);
-    WRITE_EID(&b->src);
-    WRITE_EID(&b->report_to);
-    WRITE_EID(&b->custodian);
+    WRITE_EID(stream, &b->dest);
+    WRITE_EID(stream, &b->src);
+    WRITE_EID(stream, &b->report_to);
+    WRITE_EID(stream, &b->custodian);
 
     WRITE_SDNV(stream, b->creation_ts);
     WRITE_SDNV(stream, b->creation_seq);
@@ -104,6 +99,4 @@ void bundle_write(const bundle_t *b, FILE *stream) {
 
     WRITE(stream, b->params->dict->buf, b->params->dict->pos);
     block_write(b->block, stream);
-
-#undef WRITE_EID
 }

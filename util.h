@@ -13,6 +13,11 @@
 
 #define WRITE_SDNV(stream, sdnv) WRITE(stream, (sdnv)->bytes, (sdnv)->len)
 
+#define WRITE_EID(stream, eid) do { \
+    WRITE_SDNV(stream, (eid)->scheme); \
+    WRITE_SDNV(stream, (eid)->ssp); \
+} while(0)
+
 // TODO: check if on big endian and make these noops.
 static inline uint32_t swap32(uint32_t x) {
     return __builtin_bswap32(x);
