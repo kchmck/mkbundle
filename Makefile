@@ -9,7 +9,7 @@ SRC = \
 
 OBJ = $(SRC:.c=.o)
 
-ALL_CFLAGS += -Wall -Wextra -std=c11 -pipe
+ALL_CFLAGS += -Wall -Wextra -Werror -std=c11 -pipe
 ALL_CFLAGS += $(CFLAGS)
 
 ALL_LDFLAGS += $(LDFLAGS)
