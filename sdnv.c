@@ -35,7 +35,7 @@ static inline size_t max_bytes(size_t byte_count) {
 }
 
 #ifdef MKBUNDLE_TEST
-TEST test_max_bytes() {
+TEST test_max_bytes(void) {
     ASSERT_EQ(max_bytes(1), 2);
     ASSERT_EQ(max_bytes(7), 8);
     ASSERT_EQ(max_bytes(8), 10);
@@ -58,7 +58,7 @@ static size_t skip_bytes(const uint8_t *bytes, size_t byte_count) {
 }
 
 #ifdef MKBUNDLE_TEST
-TEST test_skip_bytes() {
+TEST test_skip_bytes(void) {
     ASSERT_EQ(skip_bytes((uint8_t[]){0x00}, 1), 0);
     ASSERT_EQ(skip_bytes((uint8_t[]){0x01}, 1), 0);
     ASSERT_EQ(skip_bytes((uint8_t[]){0x00, 0x01}, 2), 1);
@@ -97,7 +97,7 @@ static bool compact_msb(uint8_t first_byte, size_t byte_count) {
 }
 
 #ifdef MKBUNDLE_TEST
-TEST test_compact_msb() {
+TEST test_compact_msb(void) {
     ASSERT(compact_msb(0x00, 1));
     ASSERT(compact_msb(0x40, 1));
     ASSERT(compact_msb(0x70, 1));
@@ -213,14 +213,14 @@ sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
     while (j) {
         // Mask off the bits to use from the current input byte and put them
         // where they should appear in the output byte.
-        hi = bytes[i] & MASKS[bit];
+        hi = (uint8_t)(bytes[i] & MASKS[bit]);
         hi <<= bit;
 
         // Build the current output byte.
         out->bytes[j] = CONTINUE | hi | lo;
 
         // Save the bits that weren't used for the next iteration.
-        lo = bytes[i] & ~MASKS[bit];
+        lo = (uint8_t)(bytes[i] & ~MASKS[bit]);
         lo >>= 7 - bit;
 
         // On every 8 iterations, no bits of the current input byte are used, so
@@ -252,7 +252,7 @@ sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
 }
 
 #ifdef MKBUNDLE_TEST
-TEST test_sdnv_encode() {
+TEST test_sdnv_encode(void) {
     sdnv_t *sdnv;
     uint16_t in16;
     uint32_t in32;

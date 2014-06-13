@@ -32,14 +32,16 @@ static void eid_destroy(eid_t *e) {
 }
 
 static inline uint32_t bundle_length(const bundle_t *b) {
-    return b->dest.scheme->len + b->dest.ssp->len +
+    return (uint32_t) (
+           b->dest.scheme->len + b->dest.ssp->len +
            b->src.scheme->len + b->src.ssp->len +
            b->report_to.scheme->len + b->report_to.ssp->len +
            b->custodian.scheme->len + b->custodian.ssp->len +
            b->creation_ts->len + b->creation_seq->len +
            b->lifetime->len +
            b->dict_len->len +
-           b->params->dict->pos;
+           b->params->dict->pos
+    );
 }
 
 void bundle_build(bundle_t *b) {

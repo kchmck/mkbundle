@@ -142,7 +142,7 @@ HTABLE_DATA_TYPE *HTABLE_REMOVE(HTABLE_T *ht, const HTABLE_KEY_TYPE key) {
   // Mark slot as empty.
   ht->slots[search.slot].hash = 0;
   // Disassociate slot from hash bucket.
-  ht->slots[search.bucket].fwd ^= 1 << HTABLE_CLAMP(search.slot - search.bucket);
+  ht->slots[search.bucket].fwd ^= 1u << HTABLE_CLAMP(search.slot - search.bucket);
 
   return &ht->slots[search.slot].data;
 }
@@ -177,11 +177,11 @@ static htable_walk_t HTABLE_FIND_SLOT(htable_cursor_t *dest, const HTABLE_T *ht,
 static bool HTABLE_FIND_SWAP(htable_cursor_t *swap, const HTABLE_T *ht,
                              size_t slot)
 {
-  // Farthest away the bucket slot can be from the given slot
-  enum { SWAP_LOOKBACK = HTABLE_BUCKET_SIZE - 1 };
-  // Ensures the number of bits in the fwd bitmap doesn't extend past the given
-  // slot
-  enum { SWAP_MASK_INIT = (1UL << SWAP_LOOKBACK) - 1 };
+// Farthest away the bucket slot can be from the given slot
+#define SWAP_LOOKBACK (HTABLE_BUCKET_SIZE - 1)
+// Ensures the number of bits in the fwd bitmap doesn't extend past the given
+// slot
+#define SWAP_MASK_INIT ((1UL << SWAP_LOOKBACK) - 1)
 
   htable_fwd_t mask, fwd;
 
@@ -193,6 +193,9 @@ static bool HTABLE_FIND_SWAP(htable_cursor_t *swap, const HTABLE_T *ht,
         return true;
 
   return false;
+
+#undef SWAP_MASK_INIT
+#undef SWAP_LOOKBACK
 }
 
 HTABLE_DATA_TYPE *HTABLE_ADD_HASH(HTABLE_T *ht, htable_hash_t h) {
@@ -222,9 +225,9 @@ HTABLE_DATA_TYPE *HTABLE_ADD_HASH(HTABLE_T *ht, htable_hash_t h) {
       ht->slots[dest.slot].data = ht->slots[swap.slot].data;
 
       // Disassociate old slot from swap hash bucket.
-      ht->slots[swap.bucket].fwd ^= 1 << HTABLE_CLAMP(swap.slot - swap.bucket);
+      ht->slots[swap.bucket].fwd ^= 1u << HTABLE_CLAMP(swap.slot - swap.bucket);
       // Associate new slot with swap hash bucket.
-      ht->slots[swap.bucket].fwd |= 1 << HTABLE_CLAMP(dest.slot - swap.bucket);
+      ht->slots[swap.bucket].fwd |= 1u << HTABLE_CLAMP(dest.slot - swap.bucket);
 
       // Continue swapping if still not in hash bucket.
       dest.slot = swap.slot;
@@ -238,7 +241,7 @@ HTABLE_DATA_TYPE *HTABLE_ADD_HASH(HTABLE_T *ht, htable_hash_t h) {
   // Mark slot as taken.
   ht->slots[dest.slot].hash = h;
   // Associate slot with hash bucket.
-  ht->slots[dest.bucket].fwd |= 1 << HTABLE_CLAMP(dest.slot - dest.bucket);
+  ht->slots[dest.bucket].fwd |= 1u << HTABLE_CLAMP(dest.slot - dest.bucket);
 
   return &ht->slots[dest.slot].data;
 }

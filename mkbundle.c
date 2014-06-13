@@ -22,7 +22,7 @@ static htable_hash_t fnv(const char *key) {
     htable_hash_t hval = 0x811c9dc5;
 
     while (*key) {
-        hval ^= *key;
+        hval ^= (uint8_t) *key;
         hval *= 0x01000193;
 
         key += 1;
@@ -58,7 +58,7 @@ static flag_t flag_parse(const char *s) {
 }
 
 #ifdef MKBUNDLE_TEST
-TEST test_flag_parse() {
+TEST test_flag_parse(void) {
     ASSERT_EQ(flag_parse("singleton"), FLAG_SINGLETON);
     ASSERT_EQ(flag_parse("BEEP"), FLAG_INVALID);
 
@@ -75,7 +75,7 @@ static flag_t prio_parse(const char *s) {
 }
 
 #ifdef MKBUNDLE_TEST
-TEST test_prio_parse() {
+TEST test_prio_parse(void) {
     ASSERT_EQ(prio_parse("expedited"), PRIO_EXPEDITED);
     ASSERT_EQ(prio_parse("expedited"), 0x0100);
     ASSERT_EQ(prio_parse("BEEP"), FLAG_INVALID);
@@ -95,7 +95,7 @@ static flag_t report_parse(const char *s) {
 }
 
 #ifdef MKBUNDLE_TEST
-TEST test_report_parse() {
+TEST test_report_parse(void) {
     ASSERT_EQ(report_parse("reception"), REPORT_RECEPTION);
     ASSERT_EQ(report_parse("BOOP"), FLAG_INVALID);
 
