@@ -10,6 +10,12 @@ SRC = \
 OBJ = $(SRC:.c=.o)
 
 ALL_CFLAGS += -Wall -Wextra -Werror -std=c11 -pipe
+ALL_CFLAGS += -Wstrict-prototypes -Wshadow -Wpointer-arith -Wcast-qual \
+          -Wmissing-prototypes -Wconversion -Wformat=2 \
+          -Wstrict-overflow=5 -pedantic -Wno-missing-braces \
+          -Winline -Wlogical-op -Wstrict-aliasing \
+          -Wredundant-decls -Wwrite-strings \
+          -Wmissing-include-dirs -Wuninitialized
 ALL_CFLAGS += $(CFLAGS)
 
 ALL_LDFLAGS += $(LDFLAGS)
