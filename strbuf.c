@@ -26,7 +26,7 @@ void strbuf_init(strbuf_t **sbp, size_t cap) {
     *sbp = sb;
 }
 
-void strbuf_init_buf(strbuf_t **sbp, const uint8_t *buf, size_t len) {
+void strbuf_init_buf(strbuf_t **sbp, const char *buf, size_t len) {
     strbuf_t *sb;
 
     sb = alloc(NULL, len + 1);
@@ -41,7 +41,7 @@ void strbuf_destroy(strbuf_t *sb) {
     free(sb);
 }
 
-void strbuf_destroy_buf(uint8_t *buf) {
+void strbuf_destroy_buf(char *buf) {
     if (buf)
         free(buf - sizeof(strbuf_t));
 }
@@ -53,7 +53,7 @@ void strbuf_expect(strbuf_t **sbp, size_t len) {
         *sbp = alloc(sb, sb->cap + len);
 }
 
-void strbuf_append(strbuf_t **sbp, const uint8_t *buf, size_t len) {
+void strbuf_append(strbuf_t **sbp, const char *buf, size_t len) {
     strbuf_t *sb;
 
     strbuf_expect(sbp, len);
@@ -63,7 +63,7 @@ void strbuf_append(strbuf_t **sbp, const uint8_t *buf, size_t len) {
     sb->pos += len;
 }
 
-static void strbuf_append_char(strbuf_t **sbp, uint8_t c) {
+static void strbuf_append_char(strbuf_t **sbp, char c) {
     strbuf_t *sb;
 
     strbuf_expect(sbp, 1);
