@@ -1,0 +1,6 @@
+*.o
+*.vim
+.gdb_history
+tags
+test-mkbundle
+mkbundle
