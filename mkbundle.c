@@ -1,6 +1,7 @@
 // See copyright notice in Copying.
 
 #include <assert.h>
+#include <errno.h>
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,108 +12,110 @@
 #endif
 
 #include "block.h"
+#include "common-block.h"
 #include "primary-block.h"
-#include "sdnv.h"
 #include "strbuf.h"
+#include "ui.h"
+#include "util.h"
 
-#define HTABLE_COMMON
-#include "htable.h"
-
-static htable_hash_t fnv(const char *key) {
-    htable_hash_t hval = 0x811c9dc5;
-
-    while (*key) {
-        hval ^= (uint8_t) *key;
-        hval *= 0x01000193;
-
-        key += 1;
-    }
-
-    return hval;
-}
-
-#define HTABLE_RESET
-#include "htable.h"
-#define HTABLE_NAME eid_map
-#define HTABLE_KEY_TYPE const char *
-#define HTABLE_DATA_TYPE size_t
-#define HTABLE_HASH_KEY(key) fnv(key)
-#define HTABLE_DEFAULT_SIZE (1 << 6)
-#include "htable.h"
-#include "htable.c"
-
-#define CHECK(str, flag) do { \
-    if (strcmp(s, str) == 0) \
-        return flag; \
-} while (0)
-
-static flag_t flag_parse(const char *s) {
-    CHECK("bundle-is-fragment", FLAG_IS_FRAGMENT);
-    CHECK("admin-record", FLAG_ADMIN);
-    CHECK("no-fragmentation", FLAG_NO_FRAGMENT);
-    CHECK("custody-transfer", FLAG_CUSTODY);
-    CHECK("singleton", FLAG_SINGLETON);
-    CHECK("ack", FLAG_ACK);
-
-    return FLAG_INVALID;
-}
-
-#ifdef MKBUNDLE_TEST
-TEST test_flag_parse(void) {
-    ASSERT_EQ(flag_parse("singleton"), FLAG_SINGLETON);
-    ASSERT_EQ(flag_parse("BEEP"), FLAG_INVALID);
-
-    PASS();
-}
-#endif
-
-static flag_t prio_parse(const char *s) {
-    CHECK("bulk", PRIO_BULK);
-    CHECK("normal", PRIO_NORMAL);
-    CHECK("expedited", PRIO_EXPEDITED);
-
-    return FLAG_INVALID;
-}
-
-#ifdef MKBUNDLE_TEST
-TEST test_prio_parse(void) {
-    ASSERT_EQ(prio_parse("expedited"), PRIO_EXPEDITED);
-    ASSERT_EQ(prio_parse("expedited"), 0x0100);
-    ASSERT_EQ(prio_parse("BEEP"), FLAG_INVALID);
-
-    PASS();
-}
-#endif
-
-static flag_t report_parse(const char *s) {
-    CHECK("reception", REPORT_RECEPTION);
-    CHECK("custody", REPORT_CUSTODY);
-    CHECK("forwarding", REPORT_FORWARDING);
-    CHECK("delivery", REPORT_DELIVERY);
-    CHECK("deletion", REPORT_DELETION);
-
-    return FLAG_INVALID;
-}
-
-#ifdef MKBUNDLE_TEST
-TEST test_report_parse(void) {
-    ASSERT_EQ(report_parse("reception"), REPORT_RECEPTION);
-    ASSERT_EQ(report_parse("BOOP"), FLAG_INVALID);
-
-    PASS();
-}
-#endif
-
-#undef CHECK
-
+#ifndef MKBUNDLE_TEST
 // Print the given formatted string and exit.
 #define DIEF(fmt, ...) do { \
     fprintf(stderr, "error: " fmt "\n", __VA_ARGS__); \
     exit(EXIT_FAILURE); \
 } while (0)
 
-#ifndef MKBUNDLE_TEST
-int main(int argc, char **argv) {
+// Print the given string and exit.
+#define DIES(str) do { \
+    fputs("error: " str "\n", stderr); \
+    exit(EXIT_FAILURE); \
+} while (0)
+
+// Handle getopt errors.
+static void handle_opt(int o, const struct option *opts, char **argv) {
+    const struct option *opt;
+
+    switch (o) {
+    case ':':
+        for (opt = opts; opt->name; opt += 1)
+            if (opt->val == optopt)
+                DIEF("option '--%s' requires an argument", opt->name);
+
+        DIEF("option '-%c' requires an argument", optopt);
+    break;
+
+    case '?':
+        if (optopt)
+            fprintf(stderr, "warning: unknown option '-%c'\n", optopt);
+        else
+            fprintf(stderr, "warning: unknown option '%s'\n", argv[optind - 1]);
+    break;
+    }
+}
+
+// Try to open a file and die on error.
+static FILE *try_open(const char *path, const char *mode) {
+    FILE *file = fopen(path, mode);
+
+    if (!file)
+        DIEF("unable to open '%s': %s", path, strerror(errno));
+
+    return file;
+}
+
+static void help_primary(const char *name) {
+    fprintf(stderr,
+        "usage: %s primary [OPTION...]\n"
+        "OPTIONS\n"
+        "  -o FILE\n"
+        "          output params to FILE instead of stdout\n"
+        "  --version VERSION\n"
+        "          set the bundle version\n"
+        "  --flag FLAG\n"
+        "          set a FLAG on the block (can be specified\n"
+        "          multiple times)\n"
+        "  --prio PRIORITY\n"
+        "          set the bundle priority\n"
+        "  --report REPORT\n"
+        "          enable a status report (can be specified\n"
+        "          multiple times)\n"
+        "  --dest DESTINATION-SCHEME\n"
+        "          set destination EID scheme\n"
+        "  --src SOURCE-SCHEME\n"
+        "          set source EID scheme\n"
+        "  --report-to REPORT-TO-SCHEME\n"
+        "          set report-to EID scheme\n"
+        "  --custodian CUSTODIAN-SCHEME\n"
+        "          set custodian EID scheme\n"
+        "  --creation CREATION-TIMESTAMP\n"
+        "          set the creation timestamp\n"
+        "  --creation-seq CREATION-SEQUENCE-NUMBER\n"
+        "          set the creation sequence number\n"
+        "  --lifetime LIFETIME-OFFSET\n"
+        "          set the lifetime offset\n"
+        "FLAGS\n"
+        "  bundle-is-fragment  bundle is a fragment\n"
+        "  admin-record        application data unit is an administrative record\n"
+        "  no-fragmentation    bundle must not be fragmented\n"
+        "  custody-transfer    custody transfer is requested\n"
+        "  singleton           destination endpoint is a singleton\n"
+        "  ack                 acknowledgement by application is requested\n"
+        "PRIORITIES\n"
+        "  bulk       bulk class of service\n"
+        "  normal     normal class of service\n"
+        "  expedited  expedited class of service\n"
+        "REPORTS\n"
+        "  reception   request reporting of bundle reception\n"
+        "  custody     request reporting of custody acceptance\n"
+        "  forwarding  request reporting of bundle forwarding\n"
+        "  delivery    request reporting of bundle delivery\n"
+        "  deletion    request reporting of bundle deletion\n"
+        ,
+        name
+    );
+}
+
+static void cmd_primary(const char *name, int argc, char **argv) {
     enum {
         OPT_HELP,
         OPT_VERSION,
@@ -138,220 +141,255 @@ int main(int argc, char **argv) {
         {"src", required_argument, NULL, OPT_SRC},
         {"report-to", required_argument, NULL, OPT_REPORT_TO},
         {"custodian", required_argument, NULL, OPT_CUSTODIAN},
-        {"creation", required_argument, NULL, OPT_CREATION_TS},
+        {"creation-ts", required_argument, NULL, OPT_CREATION_TS},
         {"creation-seq", required_argument, NULL, OPT_CREATION_SEQ},
         {"lifetime", required_argument, NULL, OPT_LIFETIME},
         {0},
     };
 
-    opterr = 0;
-
-    bundle_params_t params;
-    bundle_params_init(&params);
-
-    eid_map_t *eid_map;
-    eid_map_init(&eid_map);
-
-    const struct option *opt;
+    FILE *out = stdout;
     int ret;
     char *end;
 
-    while ((ret = getopt_long(argc, argv, ":h", OPTIONS, NULL)) >= 0) {
+    primary_block_t block;
+    primary_block_init(&block);
+
+    while ((ret = getopt_long(argc, argv, ":ho:", OPTIONS, NULL)) >= 0) {
         switch (ret) {
         case 'h':
         case OPT_HELP:
-            fprintf(stderr,
-                "usage: %s OPTION...\n"
-                "OPTIONS:\n"
-                "  --version VERSION\n"
-                "          set the bundle version\n"
-                "  --flag FLAG\n"
-                "          set a FLAG on the bundle (can be specified\n"
-                "          multiple times)\n"
-                "  --prio PRIORITY\n"
-                "          set the bundle priority\n"
-                "  --report REPORT\n"
-                "          enable a status report (can be specified\n"
-                "          multiple times)\n"
-                "  --dest DESTINATION-SCHEME\n"
-                "          set destination EID scheme\n"
-                "  --src SOURCE-SCHEME\n"
-                "          set source EID scheme\n"
-                "  --report-to REPORT-TO-SCHEME\n"
-                "          set report-to EID scheme\n"
-                "  --custodian CUSTODIAN-SCHEME\n"
-                "          set custodian EID scheme\n"
-                "  --creation CREATION-TIMESTAMP\n"
-                "          set the creation timestamp\n"
-                "  --creation-seq CREATION-SEQUENCE-NUMBER\n"
-                "          set the creation sequence number\n"
-                "  --lifetime LIFETIME-OFFSET\n"
-                "          set the lifetime offset\n"
-                "FLAGS:\n"
-                "  bundle-is-fragment\n"
-                "  admin-record\n"
-                "  no-fragmentation\n"
-                "  custody-tranfer\n"
-                "  singleton\n"
-                "  ack\n"
-                "PRIORITIES:\n"
-                "  bulk\n"
-                "  normal\n"
-                "  expedited\n"
-                "REPORTS:\n"
-                "  reception\n"
-                "  custody\n"
-                "  forwarding\n"
-                "  delivery\n"
-                "  deletion\n"
-                ,
-                argv[0]
-            );
-
+            help_primary(name);
             exit(EXIT_SUCCESS);
         break;
 
+        case 'o':
+            out = try_open(optarg, "w");
+        break;
+
         case OPT_VERSION:
-            params.version = strtoul(optarg, &end, 10);
+            block.version = strtoul(optarg, &end, 10);
 
             if (end == optarg)
                 DIEF("invalid version '%s'", optarg);
         break;
 
         case OPT_FLAG:
-            params.flags |= flag_parse(optarg);
+            block.flags |= parse_primary_flag(optarg);
 
-            if (params.flags & FLAG_INVALID)
+            if (block.flags & FLAG_INVALID)
                 DIEF("invalid flag '%s'", optarg);
         break;
 
         case OPT_PRIO:
-            params.flags &= PRIO_RESET;
-            params.flags |= prio_parse(optarg);
+            block.flags &= PRIO_RESET;
+            block.flags |= parse_prio(optarg);
 
-            if (params.flags & FLAG_INVALID)
+            if (block.flags & FLAG_INVALID)
                 DIEF("invalid priority '%s'", optarg);
         break;
 
         case OPT_REPORT:
-            params.flags |= report_parse(optarg);
+            block.flags |= parse_report(optarg);
 
-            if (params.flags & FLAG_INVALID)
+            if (block.flags & FLAG_INVALID)
                 DIEF("invalid status report '%s'", optarg);
         break;
 
-#define ADD_EID(field, str, len) do { \
-    size_t *pos = eid_map_lookup(eid_map, (str)); \
-    if (!pos) { \
-        pos = eid_map_add(&eid_map, (str)); \
-        assert(pos); \
-        *pos = params.dict->pos; \
-        strbuf_append(&params.dict, (uint8_t *)(str), (len)); \
-        strbuf_finish(&params.dict); \
-    } \
-    *(field) = *pos; \
-} while (0)
-
-#define PARSE_EID(desc, eid) do { \
-    char *sep = strchr(optarg, ':'); \
-    if (!sep) \
-        DIEF("invalid " desc " EID '%s'", optarg); \
-    *sep = 0; \
-    ADD_EID(&(eid)->scheme, optarg, sep - optarg); \
-    sep += 1; \
-    ADD_EID(&(eid)->ssp, sep, strlen(sep)); \
-} while (0)
-
         case OPT_DEST:
-            PARSE_EID("destination", &params.dest);
+            if (!primary_block_add_eid(&block, &block.dest, optarg))
+                DIEF("invalid destination EID '%s'", optarg);
         break;
 
         case OPT_SRC:
-            PARSE_EID("source", &params.src);
+            if (!primary_block_add_eid(&block, &block.src, optarg))
+                DIEF("invalid source EID '%s'", optarg);
         break;
 
         case OPT_REPORT_TO:
-            PARSE_EID("report-to", &params.report_to);
+            if (!primary_block_add_eid(&block, &block.report_to, optarg))
+                DIEF("invalid report-to EID '%s'", optarg);
         break;
 
         case OPT_CUSTODIAN:
-            PARSE_EID("custodian", &params.custodian);
+            if (!primary_block_add_eid(&block, &block.custodian, optarg))
+                DIEF("invalid custodian EID '%s'", optarg);
         break;
 
-#undef PARSE_EID
-#undef ADD_EID
-
         case OPT_CREATION_TS:
-            params.creation_ts = strtoul(optarg, &end, 10);
+            block.creation_ts = strtoul(optarg, &end, 10);
 
             if (end == optarg)
                 DIEF("invalid creation timestamp '%s'", optarg);
         break;
 
         case OPT_CREATION_SEQ:
-            params.creation_seq = strtoul(optarg, &end, 10);
+            block.creation_seq = strtoul(optarg, &end, 10);
 
             if (end == optarg)
                 DIEF("invalid creation sequence '%s'", optarg);
         break;
 
         case OPT_LIFETIME:
-            params.lifetime = strtoul(optarg, &end, 10);
+            block.lifetime = strtoul(optarg, &end, 10);
 
             if (end == optarg)
                 DIEF("invalid lifetime '%s'", optarg);
         break;
 
-        case ':':
-            for (opt = OPTIONS; opt; opt += 1)
-                if (opt->val == optopt)
-                    DIEF("option '%s' requires an argument", opt->name);
-        break;
-
-        case '?':
-            fprintf(stderr, "warning: unknown option\n");
+        default:
+            handle_opt(ret, OPTIONS, argv);
         break;
         }
     }
 
-    static const uint8_t DATA[] = "hello";
-    block_params_t block_params;
-    block_params_init(&block_params, DATA, sizeof(DATA));
+    primary_block_serialize(&block, out);
+
+    primary_block_destroy(&block);
+    fclose(out);
+}
+
+static void help_compile(const char *name) {
+    fprintf(stderr,
+        "usage: %s compile OPTION...\n"
+        "OPTIONS\n"
+        "  -i FILE\n"
+        "         read params from FILE instead of stdin\n"
+        "  -o FILE\n"
+        "         output to FILE instead of stdout\n"
+        ,
+        name
+    );
+}
+
+static void cmd_compile(const char *name, int argc, char **argv) {
+    enum {
+        OPT_HELP,
+    };
+
+    static const struct option OPTIONS[] = {
+        {"help", no_argument, NULL, OPT_HELP},
+        {0},
+    };
+
+    FILE *in = stdin;
+    FILE *out = stdout;
+    int ret;
+
+    while ((ret = getopt_long(argc, argv, ":hi:o:", OPTIONS, NULL)) >= 0) {
+        switch (ret) {
+        case 'h':
+        case OPT_HELP:
+            help_compile(name);
+            exit(EXIT_SUCCESS);
+        break;
+
+        case 'i':
+            in = try_open(optarg, "r");
+        break;
+
+        case 'o':
+            out = try_open(optarg, "w");
+        break;
+
+        default:
+            handle_opt(ret, OPTIONS, argv);
+        break;
+        }
+    }
+
+    strbuf_t *buf;
+    strbuf_init(&buf, 256);
+    collect(&buf, in);
 
     block_t block;
-    block_init(&block, &block_params);
-    block_build(&block);
+    block_init(&block);
 
-    bundle_t bundle;
-    bundle_init(&bundle, &params, &block);
-    bundle_build(&bundle);
+    if (!block_unserialize(&block, buf->buf, buf->pos))
+        DIES("unable to unserialize block");
 
-    FILE *f = fopen("test.bundle", "wb");
-    bundle_write(&bundle, f);
-    fclose(f);
+    block_write(&block, out);
 
     block_destroy(&block);
+    strbuf_destroy(buf);
+    fclose(out);
+    fclose(in);
+}
 
-    bundle_destroy(&bundle);
-    bundle_params_destroy(&params);
+static void help_main(const char *name) {
+    fprintf(stderr,
+        "usage: %s COMMAND [OPTION...]\n"
+        "COMMANDS\n"
+        "  help     show help for a command\n"
+        "  primary  create a primary block param file\n"
+        "  compile  compile a param file into binary\n"
+        "\n"
+        "See the help for each command for more informantion on specific\n"
+        "options.\n"
+        ,
+        name
+    );
+}
 
-    eid_map_destroy(eid_map);
+static void cmd_help(const char *name, int argc, char **argv) {
+    static const help_fn HELPS[] = {
+        [CMD_HELP] = help_main,
+        [CMD_PRIMARY] = help_primary,
+        [CMD_COMPILE] = help_compile,
+    };
+
+    if (argc < 2) {
+        help_main(name);
+        exit(EXIT_SUCCESS);
+    }
+
+    cmd_t cmd = parse_cmd(argv[1]);
+
+    if (cmd == CMD_INVALID)
+        DIEF("invalid command '%s'", argv[1]);
+
+    HELPS[cmd](name);
+}
+
+int main(int argc, char **argv) {
+    static const cmd_fn CMDS[] = {
+        [CMD_HELP] = cmd_help,
+        [CMD_PRIMARY] = cmd_primary,
+        [CMD_COMPILE] = cmd_compile,
+    };
+
+    opterr = 0;
+
+    if (argc < 2)
+        DIES("no command given");
+
+    cmd_t cmd = parse_cmd(argv[1]);
+
+    if (cmd == CMD_INVALID)
+        DIEF("invalid command '%s'", argv[1]);
+
+    // Run the command and strip off the initial argument.
+    CMDS[cmd](argv[0], argc - 1, &argv[1]);
 }
 #else
 extern SUITE(sdnv_suite);
-
-SUITE(mkbundle_suite) {
-    RUN_TEST(test_flag_parse);
-    RUN_TEST(test_prio_parse);
-    RUN_TEST(test_report_parse);
-}
+extern SUITE(parser_suite);
+extern SUITE(util_suite);
+extern SUITE(primary_block_suite);
+extern SUITE(block_suite);
+extern SUITE(ui_suite);
 
 GREATEST_MAIN_DEFS();
 
 int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();
-    GREATEST_RUN_SUITE(sdnv_suite);
-    GREATEST_RUN_SUITE(mkbundle_suite);
+
+    RUN_SUITE(sdnv_suite);
+    RUN_SUITE(parser_suite);
+    RUN_SUITE(util_suite);
+    RUN_SUITE(primary_block_suite);
+    RUN_SUITE(block_suite);
+    RUN_SUITE(ui_suite);
+
     GREATEST_MAIN_END();
 }
 #endif

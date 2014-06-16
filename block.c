@@ -1,40 +1,102 @@
 // See copyright notice in Copying.
 
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "block.h"
+#include "parser.h"
+#include "primary-block.h"
 #include "util.h"
 
-void block_params_init(block_params_t *p, const uint8_t *data, size_t len) {
-    *p = (block_params_t) {
-        .type = BLOCK_TYPE_DEFAULT,
-        .flags = BLOCK_FLAGS_DEFAULT,
-        .len = len,
-        .data = data,
-    };
-}
+#ifdef MKBUNDLE_TEST
+#include "greatest.h"
+#endif
 
-void block_init(block_t *b, const block_params_t *params) {
+void block_init(block_t *b) {
     *b = (block_t) {
-        .params = params,
+        .type = BLOCK_TYPE_INVALID,
     };
 }
 
 void block_destroy(block_t *b) {
-    sdnv_destroy(b->flags);
-    sdnv_destroy(b->length);
+    switch (b->type) {
+    case BLOCK_TYPE_PRIMARY:
+        primary_block_destroy(&b->primary);
+    break;
+
+    case BLOCK_TYPE_INVALID:
+    break;
+    }
 }
 
-void block_build(block_t *b) {
-    b->flags = SDNV_ENCODE(b->params->flags);
-    b->length = SDNV_ENCODE(SWAP64(b->params->len));
+static block_type_t parse_block_type(parser_t *p) {
+    static const char *MAP[] = {
+        [BLOCK_TYPE_PRIMARY] = "primary",
+    };
+
+    uint32_t type = parser_parse_sym(p, MAP, ASIZE(MAP));
+
+    if (type == SYM_INVALID)
+        return BLOCK_TYPE_INVALID;
+
+    return (block_type_t) type;
+}
+
+#ifdef MKBUNDLE_TEST
+TEST test_parse_block_type(void) {
+    parser_t parser;
+    parser_init(&parser);
+
+    static const char J[] = "\"primary\": {\"a\": 0}";
+    ASSERT(parser_parse(&parser, J, sizeof(J) - 1));
+
+    ASSERT(parse_block_type(&parser) == BLOCK_TYPE_PRIMARY);
+    ASSERT(parser_advance(&parser));
+
+    ASSERT(parse_block_type(&parser) == BLOCK_TYPE_INVALID);
+
+    PASS();
+}
+#endif
+
+bool block_unserialize(block_t *b, const char *buf, size_t len) {
+    parser_t parser;
+    parser_init(&parser);
+
+    if (!parser_parse(&parser, buf, len))
+        return false;
+
+    b->type = parse_block_type(&parser);
+
+    switch (b->type) {
+    case BLOCK_TYPE_PRIMARY:
+        primary_block_init(&b->primary);
+        primary_block_unserialize(&b->primary, &parser);
+    break;
+
+    case BLOCK_TYPE_INVALID:
+        return false;
+    break;
+    }
+
+    return true;
 }
 
 void block_write(const block_t *b, FILE *stream) {
-    WRITE(stream, &b->params->type, sizeof(b->params->type));
-    WRITE_SDNV(stream, b->flags);
-    WRITE_SDNV(stream, b->length);
-    WRITE(stream, b->params->data, b->params->len);
+    switch (b->type) {
+    case BLOCK_TYPE_PRIMARY:
+        primary_block_write(&b->primary, stream);
+    break;
+
+    case BLOCK_TYPE_INVALID:
+    break;
+    }
 }
+
+#ifdef MKBUNDLE_TEST
+SUITE(block_suite) {
+    RUN_TEST(test_parse_block_type);
+}
+#endif

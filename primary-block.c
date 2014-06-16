@@ -1,104 +1,365 @@
 // See copyright notice in Copying.
 
+#include <assert.h>
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
-#include "block.h"
+#include "common-block.h"
+#include "eid.h"
+#include "parser.h"
 #include "primary-block.h"
-#include "util.h"
 #include "sdnv.h"
+#include "strbuf.h"
+#include "util.h"
 
-void bundle_params_init(bundle_params_t *p) {
-    *p = (bundle_params_t) {
+#ifdef MKBUNDLE_TEST
+#include "greatest.h"
+#endif
+
+enum { BUNDLE_VERSION_DEFAULT = 0x06 };
+
+static inline uint32_t calc_length(const primary_block_t *b) {
+    return SDNV_LEN(SWAP32(b->dest.scheme)) + SDNV_LEN(SWAP32(b->dest.ssp)) +
+           SDNV_LEN(SWAP32(b->src.scheme)) + SDNV_LEN(SWAP32(b->src.ssp)) +
+           SDNV_LEN(SWAP32(b->report_to.scheme)) + SDNV_LEN(SWAP32(b->report_to.ssp)) +
+           SDNV_LEN(SWAP32(b->custodian.scheme)) + SDNV_LEN(SWAP32(b->custodian.ssp)) +
+           SDNV_LEN(SWAP32(b->creation_ts)) + SDNV_LEN(SWAP32(b->creation_seq)) +
+           SDNV_LEN(SWAP32(b->lifetime)) + SDNV_LEN(SWAP64(b->eid_buf->pos)) +
+           b->eid_buf->pos;
+}
+
+#ifdef MKBUNDLE_TEST
+TEST test_calc_length(void) {
+    eid_t eid = {
+        .scheme = 42,
+        .ssp = 42,
+    };
+
+    primary_block_t block;
+    primary_block_init(&block);
+
+    block.dest = eid;
+    block.src = eid;
+    block.report_to = eid;
+    block.custodian = eid;
+    block.creation_ts = block.creation_seq = block.lifetime = 42;
+    ASSERT_EQ(calc_length(&block), 12);
+
+    block.lifetime = 0xff;
+    ASSERT_EQ(calc_length(&block), 13);
+
+    strbuf_append(&block.eid_buf, "a", 1);
+    strbuf_finish(&block.eid_buf);
+    ASSERT_EQ(calc_length(&block), 15);
+
+    primary_block_destroy(&block);
+
+    PASS();
+}
+#endif
+
+// Serialize the strings in the given buffer into a JSON array.
+static void serialize_eids(const strbuf_t *eids, FILE *stream) {
+    size_t pos = 0;
+
+    while (pos < eids->pos) {
+        const char *eid = &eids->buf[pos];
+        fprintf(stream, "    \"%s\"", eid);
+
+        // Move to the next string.
+        pos += strlen(eid) + 1;
+
+        // JSON doesn't support trailing commas.
+        if (pos < eids->pos)
+            fputc(',', stream);
+
+        fputc('\n', stream);
+    }
+}
+
+void primary_block_serialize(const primary_block_t *b, FILE *stream) {
+    fprintf(stream,
+        "\"primary\": {\n"
+        "  \"version\": %" PRIu8 ",\n"
+        "  \"flags\": %" PRIu32 ",\n"
+        "  \"length\": %" PRIu32 ",\n"
+        "  \"dest\": [%" PRIu32 ", %" PRIu32 "],\n"
+        "  \"src\": [%" PRIu32 ", %" PRIu32 "],\n"
+        "  \"report-to\": [%" PRIu32 ", %" PRIu32 "],\n"
+        "  \"custodian\": [%" PRIu32 ", %" PRIu32 "],\n"
+        "  \"creation-ts\": %" PRIu32 ",\n"
+        "  \"creation-seq\": %" PRIu32 ",\n"
+        "  \"lifetime\": %" PRIu32 ",\n"
+        "  \"eids-size\": %zu,\n"
+        "  \"eids\": [\n"
+        ,
+        b->version,
+        b->flags,
+        calc_length(b),
+        b->dest.scheme, b->dest.ssp,
+        b->src.scheme, b->src.ssp,
+        b->report_to.scheme, b->report_to.ssp,
+        b->custodian.scheme, b->custodian.ssp,
+        b->creation_ts,
+        b->creation_seq,
+        b->lifetime,
+        b->eid_buf->pos
+    );
+
+    serialize_eids(b->eid_buf, stream);
+
+    fputs(
+        "  ]\n"
+        "}\n"
+        ,
+        stream
+    );
+}
+
+static void parse_eids(strbuf_t **eids, parser_t *p) {
+    assert(p->cur->type == JSMN_ARRAY);
+    int eid_count = p->cur->size;
+
+    parser_advance(p);
+
+    for (int i = 0; i < eid_count; i += 1) {
+        assert(p->cur->type == JSMN_STRING);
+
+        strbuf_append(eids, parser_cur_str(p), parser_cur_len(p));
+        strbuf_finish(eids);
+
+        parser_advance(p);
+    }
+}
+
+#ifdef MKBUNDLE_TEST
+TEST test_parse_eids(void) {
+    strbuf_t *buf;
+    strbuf_init(&buf, 256);
+
+    parser_t parser;
+    parser_init(&parser);
+
+    static const char J[] = "{\"a\": [\"a\", \"b\"]}";
+    ASSERT(parser_parse(&parser, J, sizeof(J) - 1));
+
+    ASSERT(parser_advance(&parser));
+    ASSERT(parser_advance(&parser));
+    parse_eids(&buf, &parser);
+
+    ASSERT_EQ(buf->pos, 4);
+    ASSERT_EQ(buf->buf[0], 'a');
+    ASSERT_EQ(buf->buf[2], 'b');
+
+    strbuf_destroy(buf);
+
+    PASS();
+}
+#endif
+
+void primary_block_unserialize(primary_block_t *b, parser_t *p) {
+    enum {
+        SYM_VERSION,
+        SYM_FLAGS,
+        SYM_LENGTH,
+        SYM_DEST,
+        SYM_SRC,
+        SYM_REPORT_TO,
+        SYM_CUSTODIAN,
+        SYM_CREATION_TS,
+        SYM_CREATION_SEQ,
+        SYM_LIFETIME,
+        SYM_EIDS_SIZE,
+        SYM_EIDS,
+
+        SYM_MAX,
+        SYM_MASK = (1 << SYM_MAX) - 1,
+    };
+
+    static const char *MAP[] = {
+        [SYM_VERSION] = "version",
+        [SYM_FLAGS] = "flags",
+        [SYM_LENGTH] = "length",
+        [SYM_DEST] = "dest",
+        [SYM_SRC] = "src",
+        [SYM_REPORT_TO] = "report-to",
+        [SYM_CUSTODIAN] = "custodian",
+        [SYM_CREATION_TS] = "creation-ts",
+        [SYM_CREATION_SEQ] = "creation-seq",
+        [SYM_LIFETIME] = "lifetime",
+        [SYM_EIDS_SIZE] = "eids-size",
+        [SYM_EIDS] = "eids",
+    };
+
+    assert(parser_advance(p));
+
+    // Bitmap where each bit represents if a symbol has been visited.
+    uint32_t symbols = 0;
+
+    while (parser_more(p)) {
+        uint32_t sym = parser_parse_sym(p, MAP, ASIZE(MAP));
+        symbols |= 1 << sym;
+
+        switch (sym) {
+        case SYM_VERSION:
+            b->version = parser_parse_u8(p);
+        break;
+
+        case SYM_FLAGS:
+            b->flags = parser_parse_u32(p);
+        break;
+
+        case SYM_LENGTH:
+            b->length = parser_parse_u32(p);
+        break;
+
+        case SYM_DEST:
+            parser_parse_eid(p, &b->dest);
+        break;
+
+        case SYM_SRC:
+            parser_parse_eid(p, &b->src);
+        break;
+
+        case SYM_REPORT_TO:
+            parser_parse_eid(p, &b->report_to);
+        break;
+
+        case SYM_CUSTODIAN:
+            parser_parse_eid(p, &b->custodian);
+        break;
+
+        case SYM_CREATION_TS:
+            b->creation_ts = parser_parse_u32(p);
+        break;
+
+        case SYM_CREATION_SEQ:
+            b->creation_seq = parser_parse_u32(p);
+        break;
+
+        case SYM_LIFETIME:
+            b->lifetime = parser_parse_u32(p);
+        break;
+
+        case SYM_EIDS_SIZE:
+            b->eids_size = parser_parse_u32(p);
+        break;
+
+        case SYM_EIDS:
+            parse_eids(&b->eid_buf, p);
+        break;
+
+        case SYM_INVALID:
+            abort();
+        break;
+        }
+    }
+
+    assert(symbols == SYM_MASK);
+}
+
+#ifdef MKBUNDLE_TEST
+TEST test_primary_block_unserialize(void) {
+    primary_block_t block;
+    primary_block_init(&block);
+
+    static const char J[] =
+        "{\"version\": 42, \"flags\": 42, \"length\": 42, \"dest\": [0, 1],"
+        " \"src\": [1, 0], \"report-to\": [0, 1], \"custodian\": [1, 0],"
+        " \"creation-ts\": 42, \"creation-seq\": 42, \"lifetime\": 42,"
+        " \"eids-size\": 42, \"eids\": [\"a\", \"b\"]}";
+    parser_t parser;
+    parser_init(&parser);
+    parser_parse(&parser, J, sizeof(J) - 1);
+    primary_block_unserialize(&block, &parser);
+
+    primary_block_destroy(&block);
+
+    PASS();
+}
+#endif
+
+void primary_block_init(primary_block_t *b) {
+    *b = (primary_block_t) {
         .version = BUNDLE_VERSION_DEFAULT,
         .flags = FLAG_DEFAULT,
     };
 
-    strbuf_init(&p->dict, 1 << 8);
+    eid_map_init(&b->eid_map);
+    strbuf_init(&b->eid_buf, 1 << 8);
 }
 
-void bundle_params_destroy(bundle_params_t *p) {
-    strbuf_destroy(p->dict);
+void primary_block_destroy(primary_block_t *b) {
+    strbuf_destroy(b->eid_buf);
+    eid_map_destroy(b->eid_map);
 }
 
-static void eid_build(eid_t *e, const eid_param_t *params) {
-    e->scheme = SDNV_ENCODE(SWAP32(params->scheme));
-    e->ssp = SDNV_ENCODE(SWAP32(params->ssp));
-}
-
-static void eid_destroy(eid_t *e) {
-    sdnv_destroy(e->scheme);
-    sdnv_destroy(e->ssp);
-}
-
-static inline uint32_t bundle_length(const bundle_t *b) {
-    return (uint32_t) (
-           b->dest.scheme->len + b->dest.ssp->len +
-           b->src.scheme->len + b->src.ssp->len +
-           b->report_to.scheme->len + b->report_to.ssp->len +
-           b->custodian.scheme->len + b->custodian.ssp->len +
-           b->creation_ts->len + b->creation_seq->len +
-           b->lifetime->len +
-           b->dict_len->len +
-           b->params->dict->pos
-    );
-}
-
-void bundle_build(bundle_t *b) {
-    eid_build(&b->dest, &b->params->dest);
-    eid_build(&b->src, &b->params->src);
-    eid_build(&b->report_to, &b->params->report_to);
-    eid_build(&b->custodian, &b->params->custodian);
-
-    b->flags = SDNV_ENCODE(SWAP32(b->params->flags));
-    b->creation_ts = SDNV_ENCODE(SWAP32(b->params->creation_ts));
-    b->creation_seq = SDNV_ENCODE(SWAP32(b->params->creation_seq));
-    b->lifetime = SDNV_ENCODE(SWAP32(b->params->lifetime));
-    b->dict_len = SDNV_ENCODE(SWAP64(b->params->dict->pos));
-
-    b->length = SDNV_ENCODE(SWAP64(bundle_length(b)));
-}
-
-void bundle_init(bundle_t *b, const bundle_params_t *params,
-                 const block_t *block)
-{
-    *b = (bundle_t) {
-        .params = params,
-        .block = block,
-    };
-}
-
-void bundle_destroy(bundle_t *b) {
-    sdnv_destroy(b->flags);
-    sdnv_destroy(b->length);
-
-    eid_destroy(&b->dest);
-    eid_destroy(&b->src);
-    eid_destroy(&b->report_to);
-    eid_destroy(&b->custodian);
-
-    sdnv_destroy(b->creation_ts);
-    sdnv_destroy(b->creation_seq);
-    sdnv_destroy(b->lifetime);
-
-    sdnv_destroy(b->dict_len);
-}
-
-void bundle_write(const bundle_t *b, FILE *stream) {
-    WRITE(stream, &b->params->version, sizeof(b->params->version));
-    WRITE_SDNV(stream, b->flags);
-    WRITE_SDNV(stream, b->length);
+void primary_block_write(const primary_block_t *b, FILE *stream) {
+    WRITE(stream, &b->version, sizeof(b->version));
+    WRITE_SDNV(stream, SWAP32(b->flags));
+    WRITE_SDNV(stream, SWAP32(b->length));
 
     WRITE_EID(stream, &b->dest);
     WRITE_EID(stream, &b->src);
     WRITE_EID(stream, &b->report_to);
     WRITE_EID(stream, &b->custodian);
 
-    WRITE_SDNV(stream, b->creation_ts);
-    WRITE_SDNV(stream, b->creation_seq);
-    WRITE_SDNV(stream, b->lifetime);
-    WRITE_SDNV(stream, b->dict_len);
+    WRITE_SDNV(stream, SWAP32(b->creation_ts));
+    WRITE_SDNV(stream, SWAP32(b->creation_seq));
+    WRITE_SDNV(stream, SWAP32(b->lifetime));
+    WRITE_SDNV(stream, SWAP32(b->eids_size));
 
-    WRITE(stream, b->params->dict->buf, b->params->dict->pos);
-    block_write(b->block, stream);
+    WRITE(stream, b->eid_buf->buf, b->eid_buf->pos);
 }
+
+static size_t add_eid(primary_block_t *b, const char *str, size_t len) {
+    size_t *pos = eid_map_lookup(b->eid_map, str);
+
+    if (!pos) {
+        pos = eid_map_add(&b->eid_map, str);
+        assert(pos);
+
+        *pos = b->eid_buf->pos;
+
+        strbuf_append(&b->eid_buf, str, len);
+        strbuf_finish(&b->eid_buf);
+    }
+
+    return *pos;
+}
+
+#ifdef MKBUNDLE_TEST
+TEST test_add_eid(void) {
+}
+#endif
+
+bool primary_block_add_eid(primary_block_t *b, eid_t *e, const char *str) {
+    const char *sep = strchr(str, ':');
+
+    if (!sep)
+        return false;
+
+    *e = (eid_t) {
+        .scheme = add_eid(b, str, sep - str),
+        .ssp = add_eid(b, sep + 1, strlen(sep + 1)),
+    };
+
+    return true;
+}
+
+#ifdef MKBUNDLE_TEST
+TEST test_primary_block_add_eid(void) {
+}
+#endif
+
+#ifdef MKBUNDLE_TEST
+SUITE(primary_block_suite) {
+    RUN_TEST(test_calc_length);
+    RUN_TEST(test_parse_eids);
+    RUN_TEST(test_primary_block_unserialize);
+    RUN_TEST(test_add_eid);
+    RUN_TEST(test_primary_block_add_eid);
+}
+#endif

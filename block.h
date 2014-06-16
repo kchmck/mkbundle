@@ -4,36 +4,38 @@
 #define BLOCK_H
 
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "sdnv.h"
+#include "primary-block.h"
 
-enum { BLOCK_TYPE_DEFAULT = 0x1 };
-enum { BLOCK_FLAGS_DEFAULT = 0x0 };
+typedef enum {
+    BLOCK_TYPE_PRIMARY,
 
+    BLOCK_TYPE_INVALID,
+} block_type_t;
+
+// An wrapper around available block types.
 typedef struct {
-    uint8_t type;
-    uint8_t flags;
-    size_t len;
-    const uint8_t *data;
-} block_params_t;
+    block_type_t type;
 
-void block_params_init(block_params_t *p, const uint8_t *data, size_t len);
-
-typedef struct {
-    const block_params_t *params;
-
-    sdnv_t *flags;
-    sdnv_t *length;
+    union {
+        primary_block_t primary;
+    };
 } block_t;
 
-void block_init(block_t *b, const block_params_t *params);
+// Initialize the block to a default state.
+void block_init(block_t *b);
 
+// Free any memory held by the block.
 void block_destroy(block_t *b);
 
-void block_build(block_t *b);
+// Parse the parameters in the buffer into a specific block. Return true on
+// success and false otherwise.
+bool block_unserialize(block_t *b, const char *buf, size_t len);
 
+// Write the binary form of the block to the file.
 void block_write(const block_t *b, FILE *stream);
 
 #endif
