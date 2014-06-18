@@ -4,7 +4,6 @@ BINARY = mkbundle
 
 SRC = \
       block.c \
-      eid.c \
       mkbundle.c \
       parser.c \
       primary-block.c \

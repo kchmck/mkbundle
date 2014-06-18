@@ -20,6 +20,19 @@
 
 enum { BUNDLE_VERSION_DEFAULT = 0x06 };
 
+#include "htable.c"
+
+htable_hash_t fnv(const eid_table_str_t *key) {
+    htable_hash_t hval = 0x811c9dc5;
+
+    for (size_t i = 0; i < key->len; i += 1) {
+        hval ^= (uint8_t) key->str[i];
+        hval *= 0x01000193;
+    }
+
+    return hval;
+}
+
 static inline uint32_t calc_length(const primary_block_t *b) {
     return SDNV_LEN(SWAP32(b->dest.scheme)) + SDNV_LEN(SWAP32(b->dest.ssp)) +
            SDNV_LEN(SWAP32(b->src.scheme)) + SDNV_LEN(SWAP32(b->src.ssp)) +
