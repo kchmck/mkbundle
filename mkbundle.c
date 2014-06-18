@@ -248,6 +248,116 @@ static void cmd_primary(const char *name, int argc, char **argv) {
     fclose(out);
 }
 
+static void help_extension(const char *name) {
+    fprintf(stderr,
+        "usage: %s extension [OPTION...]\n"
+        "OPTIONS\n"
+        "  -o FILE\n"
+        "         output params to FILE instead of stdout\n"
+        "  --type BLOCK-TYPE\n"
+        "         set the block's type (can be an integer or a symbolic\n"
+        "         BLOCK-TYPE)\n"
+        "  --flag FLAG\n"
+        "         set a FLAG on the block (can be specified multiple times)\n"
+        "  --ref SCHEME-OFFSET:SSP-OFFSET\n"
+        "         add an EID reference to the block\n"
+        "  --payload-length PAYLOAD-LENGTH\n"
+        "         set the payload length of the block\n"
+        "FLAGS\n"
+        "  replicate        block must be replicated in every fragment\n"
+        "  transmit-status  transmit status report if block can't be processed\n"
+        "  delete-bundle    delete bundle if block can't be processed\n"
+        "  last-block       last block in the bundle\n"
+        "  discard-block    discard block if it can't be processed\n"
+        "  eid-ref          block contains an EID-reference field\n"
+        "BLOCK-TYPES\n"
+        "  payload  a payload block\n"
+        "  phib     a PHIB block\n"
+        ,
+        name
+    );
+}
+
+static void cmd_extension(const char *name, int argc, char **argv) {
+    enum {
+        OPT_HELP,
+        OPT_TYPE,
+        OPT_FLAG,
+        OPT_REF,
+        OPT_REF_COUNT,
+        OPT_PAYLOAD_LENGTH,
+    };
+
+    static const struct option OPTIONS[] = {
+        {"help", no_argument, NULL, OPT_HELP},
+        {"type", required_argument, NULL, OPT_TYPE},
+        {"flag", required_argument, NULL, OPT_FLAG},
+        {"ref", required_argument, NULL, OPT_REF},
+        {"payload-length", required_argument, NULL, OPT_PAYLOAD_LENGTH},
+        {0},
+    };
+
+    FILE *out = stdout;
+    int ret;
+    char *end;
+
+    ext_block_t block;
+    ext_block_init(&block);
+
+    while ((ret = getopt_long(argc, argv, ":ho:", OPTIONS, NULL)) >= 0) {
+        switch (ret) {
+        case 'h':
+        case OPT_HELP:
+            help_extension(name);
+            exit(EXIT_SUCCESS);
+        break;
+
+        case 'o':
+            out = try_open(optarg, "w");
+        break;
+
+        case OPT_TYPE:
+            block.type = parse_ext_block_type(optarg);
+
+            if (block.type != EXT_BLOCK_INVALID)
+                break;
+
+            block.type = strtoul(optarg, &end, 10);
+
+            if (end == optarg)
+                DIEF("invalid block type '%s'", optarg);
+        break;
+
+        case OPT_FLAG:
+            block.flags |= parse_ext_flag(optarg);
+
+            if (block.flags & FLAG_INVALID)
+                DIEF("invalid flag '%s'", optarg);
+        break;
+
+        case OPT_REF:
+            if (!ext_block_add_ref(&block, optarg))
+                DIEF("invalid ref '%s'", optarg);
+        break;
+
+        case OPT_PAYLOAD_LENGTH:
+            block.length = strtoul(optarg, &end, 10);
+
+            if (end == optarg)
+                DIEF("invalid payload length '%s'", optarg);
+        break;
+
+        default:
+            handle_opt(ret, OPTIONS, argv);
+        break;
+        }
+    }
+
+    ext_block_serialize(&block, out);
+
+    fclose(out);
+}
+
 static void help_compile(const char *name) {
     fprintf(stderr,
         "usage: %s compile OPTION...\n"
@@ -319,9 +429,10 @@ static void help_main(const char *name) {
     fprintf(stderr,
         "usage: %s COMMAND [OPTION...]\n"
         "COMMANDS\n"
-        "  help     show help for a command\n"
-        "  primary  create a primary block param file\n"
-        "  compile  compile a param file into binary\n"
+        "  help       show help for a command\n"
+        "  primary    create a primary block param file\n"
+        "  extension  create an extension block param file\n"
+        "  compile    compile a param file into binary\n"
         "\n"
         "See the help for each command for more informantion on specific\n"
         "options.\n"
@@ -334,6 +445,7 @@ static void cmd_help(const char *name, int argc, char **argv) {
     static const help_fn HELPS[] = {
         [CMD_HELP] = help_main,
         [CMD_PRIMARY] = help_primary,
+        [CMD_EXTENSION] = help_extension,
         [CMD_COMPILE] = help_compile,
     };
 
@@ -354,6 +466,7 @@ int main(int argc, char **argv) {
     static const cmd_fn CMDS[] = {
         [CMD_HELP] = cmd_help,
         [CMD_PRIMARY] = cmd_primary,
+        [CMD_EXTENSION] = cmd_extension,
         [CMD_COMPILE] = cmd_compile,
     };
 
@@ -375,6 +488,7 @@ extern SUITE(sdnv_suite);
 extern SUITE(parser_suite);
 extern SUITE(util_suite);
 extern SUITE(primary_block_suite);
+extern SUITE(ext_block_suite);
 extern SUITE(block_suite);
 extern SUITE(ui_suite);
 
@@ -387,6 +501,7 @@ int main(int argc, char **argv) {
     RUN_SUITE(parser_suite);
     RUN_SUITE(util_suite);
     RUN_SUITE(primary_block_suite);
+    RUN_SUITE(ext_block_suite);
     RUN_SUITE(block_suite);
     RUN_SUITE(ui_suite);
 

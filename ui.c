@@ -18,6 +18,7 @@ cmd_t parse_cmd(const char *str) {
         {CMD_HELP, "-h"},
         {CMD_HELP, "help"},
         {CMD_PRIMARY, "primary"},
+        {CMD_EXTENSION, "extension"},
         {CMD_COMPILE, "compile"},
     };
 
@@ -37,6 +38,24 @@ uint32_t parse_primary_flag(const char *str) {
         {FLAG_CUSTODY, "custody-transfer"},
         {FLAG_SINGLETON, "singleton"},
         {FLAG_ACK, "ack"},
+    };
+
+    uint32_t flag = sym_parse(str, MAP, ASIZE(MAP));
+
+    if (flag == SYM_INVALID)
+        return FLAG_INVALID;
+
+    return flag;
+}
+
+uint32_t parse_ext_flag(const char *str) {
+    static const sym_t MAP[] = {
+        {FLAG_REPLICATE, "replicate"},
+        {FLAG_TRANSMIT_STATUS, "transmit-status"},
+        {FLAG_DELETE_BUNDLE, "delete-bundle"},
+        {FLAG_LAST_BLOCK, "last-block"},
+        {FLAG_DISCARD_BLOCK, "discard-block"},
+        {FLAG_CONTAINS_REF, "eid-ref"},
     };
 
     uint32_t flag = sym_parse(str, MAP, ASIZE(MAP));
@@ -82,6 +101,7 @@ uint32_t parse_report(const char *str) {
 ext_block_type_t parse_ext_block_type(const char *str) {
     static const sym_t MAP[] = {
         {EXT_BLOCK_PAYLOAD, "payload"},
+        {EXT_BLOCK_PHIB, "phib"},
     };
 
     uint32_t type = sym_parse(str, MAP, ASIZE(MAP));

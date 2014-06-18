@@ -24,6 +24,14 @@ enum {
     REPORT_DELIVERY = 1 << 17,
     REPORT_DELETION = 1 << 18,
 
+    FLAG_REPLICATE = 1 << 0,
+    FLAG_TRANSMIT_STATUS = 1 << 1,
+    FLAG_DELETE_BUNDLE = 1 << 2,
+    FLAG_LAST_BLOCK = 1 << 3,
+    FLAG_DISCARD_BLOCK = 1 << 4,
+    FLAG_FORWARDED = 1 << 5,
+    FLAG_CONTAINS_REF = 1 << 6,
+
     FLAG_INVALID = 1 << 31,
 };
 

@@ -8,10 +8,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "ext-block.h"
 #include "primary-block.h"
 
 typedef enum {
     BLOCK_TYPE_PRIMARY,
+    BLOCK_TYPE_EXT,
 
     BLOCK_TYPE_INVALID,
 } block_type_t;
@@ -22,6 +24,7 @@ typedef struct {
 
     union {
         primary_block_t primary;
+        ext_block_t ext;
     };
 } block_t;
 

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 #include "block.h"
+#include "ext-block.h"
 #include "parser.h"
 #include "primary-block.h"
 #include "util.h"
@@ -26,6 +27,9 @@ void block_destroy(block_t *b) {
         primary_block_destroy(&b->primary);
     break;
 
+    case BLOCK_TYPE_EXT:
+    break;
+
     case BLOCK_TYPE_INVALID:
     break;
     }
@@ -34,6 +38,7 @@ void block_destroy(block_t *b) {
 static block_type_t parse_block_type(parser_t *p) {
     static const char *MAP[] = {
         [BLOCK_TYPE_PRIMARY] = "primary",
+        [BLOCK_TYPE_EXT] = "extension",
     };
 
     uint32_t type = parser_parse_sym(p, MAP, ASIZE(MAP));
@@ -76,6 +81,11 @@ bool block_unserialize(block_t *b, const char *buf, size_t len) {
         primary_block_unserialize(&b->primary, &parser);
     break;
 
+    case BLOCK_TYPE_EXT:
+        ext_block_init(&b->ext);
+        ext_block_unserialize(&b->ext, &parser);
+    break;
+
     case BLOCK_TYPE_INVALID:
         return false;
     break;
@@ -88,6 +98,10 @@ void block_write(const block_t *b, FILE *stream) {
     switch (b->type) {
     case BLOCK_TYPE_PRIMARY:
         primary_block_write(&b->primary, stream);
+    break;
+
+    case BLOCK_TYPE_EXT:
+        ext_block_write(&b->ext, stream);
     break;
 
     case BLOCK_TYPE_INVALID:
