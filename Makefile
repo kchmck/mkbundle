@@ -29,7 +29,7 @@ $(BINARY): $(OBJ)
 	$(CC) -o $@ $^ $(ALL_LDFLAGS)
 
 test:
-	$(MAKE) CFLAGS="-DMKBUNDLE_TEST $(CFLAGS)" BINARY=test-mkbundle -B
+	$(MAKE) CFLAGS="-DMKBUNDLE_TEST -O0 -g $(CFLAGS)" BINARY=test-mkbundle -B
 
 %.o: %.c
 	$(CC) -c $(ALL_CFLAGS) $< -o $@
