@@ -315,23 +315,41 @@ void primary_block_write(const primary_block_t *b, FILE *stream) {
 }
 
 static size_t add_eid(primary_block_t *b, const char *str, size_t len) {
-    size_t *pos = eid_map_lookup(b->eid_map, str);
+    const eid_table_str_t s = {
+        .str = str,
+        .len = len,
+    };
 
-    if (!pos) {
-        pos = eid_map_add(&b->eid_map, str);
-        assert(pos);
+    size_t *pos = eid_map_lookup(b->eid_map, &s);
 
-        *pos = b->eid_buf->pos;
+    if (pos)
+        return *pos;
 
-        strbuf_append(&b->eid_buf, str, len);
-        strbuf_finish(&b->eid_buf);
-    }
+    pos = eid_map_add(&b->eid_map, &s);
+    assert(pos);
+
+    *pos = b->eid_buf->pos;
+
+    strbuf_append(&b->eid_buf, str, len);
+    strbuf_finish(&b->eid_buf);
 
     return *pos;
 }
 
 #ifdef MKBUNDLE_TEST
 TEST test_add_eid(void) {
+    primary_block_t block;
+    primary_block_init(&block);
+
+    ASSERT(add_eid(&block, "ab", 2) == 0);
+    ASSERT(add_eid(&block, "cd", 2) == 3);
+
+    ASSERT(add_eid(&block, "ab", 2) == 0);
+    ASSERT(add_eid(&block, "cd", 2) == 3);
+
+    primary_block_destroy(&block);
+
+    PASS();
 }
 #endif
 
@@ -351,6 +369,30 @@ bool primary_block_add_eid(primary_block_t *b, eid_t *e, const char *str) {
 
 #ifdef MKBUNDLE_TEST
 TEST test_primary_block_add_eid(void) {
+    primary_block_t block;
+    primary_block_init(&block);
+
+    ASSERT(!primary_block_add_eid(&block, &block.dest, "a"));
+
+    ASSERT(primary_block_add_eid(&block, &block.dest, "a:"));
+    ASSERT(block.dest.scheme == 0);
+    ASSERT(block.dest.ssp == 2);
+
+    ASSERT(primary_block_add_eid(&block, &block.dest, ":b"));
+    ASSERT(block.dest.scheme == 2);
+    ASSERT(block.dest.ssp == 3);
+
+    ASSERT(primary_block_add_eid(&block, &block.dest, "c:d"));
+    ASSERT(block.dest.scheme == 5);
+    ASSERT(block.dest.ssp == 7);
+
+    ASSERT(primary_block_add_eid(&block, &block.dest, "a:d"));
+    ASSERT(block.dest.scheme == 0);
+    ASSERT(block.dest.ssp == 7);
+
+    primary_block_destroy(&block);
+
+    PASS();
 }
 #endif
 
