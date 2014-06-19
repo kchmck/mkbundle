@@ -22,11 +22,15 @@ enum { BUNDLE_VERSION_DEFAULT = 0x06 };
 
 #include "htable.c"
 
+// A Fowler/Noll/Vo hash function as detailed at
+// http://www.isthe.com/chongo/tech/comp/fnv/
 htable_hash_t fnv(const eid_table_str_t *key) {
+    // Standard 32-bit offset basis.
     htable_hash_t hval = 0x811c9dc5;
 
     for (size_t i = 0; i < key->len; i += 1) {
         hval ^= (uint8_t) key->str[i];
+        // Standard 32-bit prime.
         hval *= 0x01000193;
     }
 
