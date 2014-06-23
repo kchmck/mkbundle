@@ -11,7 +11,7 @@
 #include "strbuf.h"
 #include "sdnv.h"
 
-// Get the number of elements in the given array.
+// Get the number of elements in the array.
 #define ASIZE(a) (sizeof(a) / sizeof((a)[0]))
 
 // A value and its symbol.

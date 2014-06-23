@@ -79,7 +79,7 @@ TEST test_calc_length(void) {
 }
 #endif
 
-// Serialize the strings in the given buffer into a JSON array.
+// Serialize the strings in the buffer into a JSON array.
 static void serialize_eids(const strbuf_t *eids, FILE *stream) {
     size_t pos = 0;
 

@@ -20,10 +20,10 @@ typedef struct {
     bool error;
 } parser_t;
 
-// Initialize the given parser to a default state.
+// Initialize the parser to a default state.
 void parser_init(parser_t *p);
 
-// Parse the given JSON. The parser takes ownership of the given buffer.
+// Parse the given JSON. The parser takes ownership of the buffer.
 bool parser_parse(parser_t *p, const char *src, size_t len);
 
 // Check if there are more tokens to visit.
@@ -47,7 +47,7 @@ uint32_t parser_parse_u32(parser_t *p);
 // Parse the current token as a uint8_t. Abort on parse error.
 uint8_t parser_parse_u8(parser_t *p);
 
-// Parse the current token as one of the symbols in the given syms array. Return
+// Parse the current token as one of the symbols in the syms array. Return
 // SYM_INVALID on parse error.
 uint32_t parser_parse_sym(parser_t *p, const char **syms, size_t sym_count);
 

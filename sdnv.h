@@ -24,7 +24,7 @@ sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count);
 // Encode the given variable into an SDNV.
 #define SDNV_ENCODE(x) sdnv_encode((const uint8_t *) &(x), sizeof(x))
 
-// Free the memory held by the given SDNV.
+// Free the memory held by the SDNV.
 void sdnv_destroy(sdnv_t *b);
 
 #endif

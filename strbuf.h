@@ -16,27 +16,26 @@ typedef struct {
     char buf[];
 } strbuf_t;
 
-// Initialize the given strbuf to have the given capacity.
+// Initialize the strbuf to have the given capacity.
 void strbuf_init(strbuf_t **sbp, size_t cap);
 
-// Initialize the given strbuf with a copy of the given character buffer with
-// the given length.
+// Initialize the strbuf with a copy of the given character buffer with the
+// given length.
 void strbuf_init_buf(strbuf_t **sbp, const char *buf, size_t len);
 
-// Free the memory held by the given strbuf.
+// Free the memory held by the strbuf.
 void strbuf_destroy(strbuf_t *sb);
 
 // Destroy the strbuf that wraps the given character buffer.
 void strbuf_destroy_buf(char *buf);
 
-// Ensure the given strbuf can hold len more bytes.
+// Ensure the strbuf can hold len more bytes.
 void strbuf_expect(strbuf_t **sbp, size_t len);
 
-// Append the given string to the given strbuf. Note that no null-termination is
-// done.
+// Append the given string to the strbuf. Note that no null-termination is done.
 void strbuf_append(strbuf_t **sbp, const char *buf, size_t len);
 
-// Add a null-terminator to the current position in the given strbuf.
+// Add a null-terminator to the current position in the strbuf.
 void strbuf_finish(strbuf_t **sbp);
 
 #endif

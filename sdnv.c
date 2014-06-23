@@ -12,8 +12,7 @@
 #include "greatest.h"
 #endif
 
-// Allocate an SDNV to hold the given number of bytes and point the given
-// pointer at it.
+// Allocate an SDNV to hold the number of bytes and point the pointer at it.
 static void sdnv_init(sdnv_t **sdnv, size_t byte_count) {
     *sdnv = malloc(sizeof(sdnv_t) + byte_count * sizeof(uint8_t));
     assert(*sdnv);
@@ -45,8 +44,8 @@ TEST test_max_bytes(void) {
 }
 #endif
 
-// Find the first non-zero byte in the given bytes and return its index. Return
-// the index of the last byte if all bytes are zero.
+// Find the first non-zero byte and return its index. Return the index of the
+// last byte if all bytes are zero.
 static size_t skip_bytes(const uint8_t *bytes, size_t byte_count) {
     assert(byte_count > 0);
 

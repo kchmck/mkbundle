@@ -50,22 +50,22 @@ typedef struct {
     strbuf_t *eid_buf;
 } primary_block_t;
 
-// Initialize the given block to a default state.
+// Initialize the block to a default state.
 void primary_block_init(primary_block_t *b);
 
-// Free memory held by the given block.
+// Free memory held by the block.
 void primary_block_destroy(primary_block_t *b);
 
-// Write the params for the given block to JSON.
+// Write the params for the block to JSON.
 void primary_block_serialize(const primary_block_t *b, FILE *stream);
 
-// Unserialize a block from the given parser.
+// Unserialize a block from the parser.
 bool primary_block_unserialize(primary_block_t *b, parser_t *p);
 
-// Write the final binary form of the given block.
+// Write the final binary form of the block.
 void primary_block_write(const primary_block_t *b, FILE *stream);
 
-// Parse the given string into an EID and add it to the given block.
+// Parse the string into an EID and add it to the block.
 bool primary_block_add_eid(primary_block_t *b, eid_t *e, const char *str);
 
 #endif
