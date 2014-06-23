@@ -38,13 +38,15 @@ htable_hash_t fnv(const eid_table_str_t *key) {
 }
 
 static inline uint32_t calc_length(const primary_block_t *b) {
-    return SDNV_LEN(SWAP32(b->dest.scheme)) + SDNV_LEN(SWAP32(b->dest.ssp)) +
+    return (uint32_t)(
+           SDNV_LEN(SWAP32(b->dest.scheme)) + SDNV_LEN(SWAP32(b->dest.ssp)) +
            SDNV_LEN(SWAP32(b->src.scheme)) + SDNV_LEN(SWAP32(b->src.ssp)) +
            SDNV_LEN(SWAP32(b->report_to.scheme)) + SDNV_LEN(SWAP32(b->report_to.ssp)) +
            SDNV_LEN(SWAP32(b->custodian.scheme)) + SDNV_LEN(SWAP32(b->custodian.ssp)) +
            SDNV_LEN(SWAP32(b->creation_ts)) + SDNV_LEN(SWAP32(b->creation_seq)) +
            SDNV_LEN(SWAP32(b->lifetime)) + SDNV_LEN(SWAP64(b->eid_buf->pos)) +
-           b->eid_buf->pos;
+           b->eid_buf->pos
+    );
 }
 
 #ifdef MKBUNDLE_TEST
@@ -387,8 +389,8 @@ bool primary_block_add_eid(primary_block_t *b, eid_t *e, const char *str) {
         return false;
 
     *e = (eid_t) {
-        .scheme = add_eid(b, str, sep - str),
-        .ssp = add_eid(b, sep + 1, strlen(sep + 1)),
+        .scheme = (uint32_t) add_eid(b, str, (size_t)(sep - str)),
+        .ssp = (uint32_t) add_eid(b, sep + 1, strlen(sep + 1)),
     };
 
     return true;

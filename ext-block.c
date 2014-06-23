@@ -244,7 +244,7 @@ static bool parse_ref(eid_t *e, const char *str) {
 
     {
         const char *start = str;
-        e->scheme = strtoul(start, &end, 10);
+        e->scheme = (uint32_t) strtoul(start, &end, 10);
 
         if (end == start)
             return false;
@@ -252,7 +252,7 @@ static bool parse_ref(eid_t *e, const char *str) {
 
     {
         const char *start = sep + 1;
-        e->ssp = strtoul(start, &end, 10);
+        e->ssp = (uint32_t) strtoul(start, &end, 10);
 
         if (end == start)
             return false;

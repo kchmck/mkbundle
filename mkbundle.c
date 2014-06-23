@@ -167,7 +167,7 @@ static void cmd_primary(const char *name, int argc, char **argv) {
         break;
 
         case OPT_VERSION:
-            block.version = strtoul(optarg, &end, 10);
+            block.version = (uint8_t) strtoul(optarg, &end, 10);
 
             if (end == optarg)
                 DIEF("invalid version '%s'", optarg);
@@ -216,21 +216,21 @@ static void cmd_primary(const char *name, int argc, char **argv) {
         break;
 
         case OPT_CREATION_TS:
-            block.creation_ts = strtoul(optarg, &end, 10);
+            block.creation_ts = (uint32_t) strtoul(optarg, &end, 10);
 
             if (end == optarg)
                 DIEF("invalid creation timestamp '%s'", optarg);
         break;
 
         case OPT_CREATION_SEQ:
-            block.creation_seq = strtoul(optarg, &end, 10);
+            block.creation_seq = (uint32_t) strtoul(optarg, &end, 10);
 
             if (end == optarg)
                 DIEF("invalid creation sequence '%s'", optarg);
         break;
 
         case OPT_LIFETIME:
-            block.lifetime = strtoul(optarg, &end, 10);
+            block.lifetime = (uint32_t) strtoul(optarg, &end, 10);
 
             if (end == optarg)
                 DIEF("invalid lifetime '%s'", optarg);
@@ -322,14 +322,14 @@ static void cmd_extension(const char *name, int argc, char **argv) {
             if (block.type != EXT_BLOCK_INVALID)
                 break;
 
-            block.type = strtoul(optarg, &end, 10);
+            block.type = (uint8_t) strtoul(optarg, &end, 10);
 
             if (end == optarg)
                 DIEF("invalid block type '%s'", optarg);
         break;
 
         case OPT_FLAG:
-            block.flags |= parse_ext_flag(optarg);
+            block.flags |= (uint8_t) parse_ext_flag(optarg);
 
             if (block.flags & FLAG_INVALID)
                 DIEF("invalid flag '%s'", optarg);
@@ -341,7 +341,7 @@ static void cmd_extension(const char *name, int argc, char **argv) {
         break;
 
         case OPT_PAYLOAD_LENGTH:
-            block.length = strtoul(optarg, &end, 10);
+            block.length = (uint32_t) strtoul(optarg, &end, 10);
 
             if (end == optarg)
                 DIEF("invalid payload length '%s'", optarg);

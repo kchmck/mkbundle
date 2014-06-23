@@ -125,7 +125,7 @@ uint32_t parser_parse_sym(parser_t *p, const char **syms, size_t sym_count) {
             strncmp(syms[sym], parser_cur_str(p), parser_cur_len(p) ) == 0)
         {
             parser_advance(p);
-            return sym;
+            return (uint32_t) sym;
         }
     }
 
