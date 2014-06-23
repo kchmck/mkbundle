@@ -223,7 +223,7 @@ bool primary_block_unserialize(primary_block_t *b, parser_t *p) {
 
     while (parser_more(p)) {
         uint32_t sym = parser_parse_sym(p, MAP, ASIZE(MAP));
-        symbols |= 1 << sym;
+        symbols |= 1u << sym;
 
         switch (sym) {
         case SYM_VERSION:
