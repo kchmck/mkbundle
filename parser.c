@@ -18,6 +18,7 @@
 void parser_init(parser_t *p) {
     *p = (parser_t) {
         .tokens = {{0}},
+        .error = false,
     };
 }
 
@@ -114,7 +115,10 @@ TEST test_cur(void) {
 #endif
 
 uint32_t parser_parse_sym(parser_t *p, const char **syms, size_t sym_count) {
-    assert(p->cur->type == JSMN_STRING);
+    if (p->cur->type != JSMN_STRING) {
+        p->error = true;
+        return 0;
+    }
 
     for (size_t sym = 0; sym < sym_count; sym += 1) {
         if (strlen(syms[sym]) == parser_cur_len(p) &&
@@ -159,15 +163,20 @@ TEST test_parse_sym(void) {
 #endif
 
 uint32_t parser_parse_u32(parser_t *p) {
-    assert(p->cur->type == JSMN_PRIMITIVE);
+    if (p->cur->type != JSMN_PRIMITIVE) {
+        p->error = true;
+        return 0;
+    }
 
     const char *start = parser_cur_str(p);
     char *end;
 
     unsigned long long val = strtoull(start, &end, 10);
 
-    assert(end != start);
-    assert(val <= UINT32_MAX);
+    if (end == start || val > UINT32_MAX) {
+        p->error = true;
+        return 0;
+    }
 
     parser_advance(p);
 
@@ -188,8 +197,9 @@ TEST test_parse_u32(void) {
     ASSERT_EQ(parser_parse_u32(&parser), 0);
 
     ASSERT(parser_advance(&parser));
-    // abort
-    // ASSERT_EQ(parser_parse_u32(&parser), 0);
+    parser_parse_u32(&parser);
+    ASSERT(parser.error);
+    parser.error = false;
 
     ASSERT(parser_advance(&parser));
     ASSERT(parser_advance(&parser));
@@ -201,7 +211,11 @@ TEST test_parse_u32(void) {
 
 uint8_t parser_parse_u8(parser_t *p) {
     uint32_t val = parser_parse_u32(p);
-    assert(val <= UINT8_MAX);
+
+    if (val > UINT8_MAX) {
+        p->error = true;
+        return 0;
+    }
 
     return (uint8_t) val;
 }
@@ -219,10 +233,10 @@ TEST test_parse_u8(void) {
     ASSERT_EQ(parser_parse_u8(&parser), 0);
 
     ASSERT(parser_advance(&parser));
-    // abort
-    // ASSERT_EQ(parser_parse_u8(&parser), 0);
+    parser_parse_u8(&parser);
+    ASSERT(parser.error);
+    parser.error = false;
 
-    ASSERT(parser_advance(&parser));
     ASSERT(parser_advance(&parser));
     ASSERT_EQ(parser_parse_u8(&parser), 255);
 
@@ -230,14 +244,16 @@ TEST test_parse_u8(void) {
 }
 #endif
 
-void parser_parse_eid(parser_t *p, eid_t *eid) {
-    assert(p->cur->type == JSMN_ARRAY);
-    parser_advance(p);
+bool parser_parse_eid(parser_t *p, eid_t *eid) {
+    if (p->cur->type != JSMN_ARRAY || !parser_advance(p))
+        return false;
 
     *eid = (eid_t) {
         .scheme = parser_parse_u32(p),
         .ssp = parser_parse_u32(p),
     };
+
+    return !p->error;
 }
 
 #ifdef MKBUNDLE_TEST

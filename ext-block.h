@@ -40,7 +40,7 @@ void ext_block_init(ext_block_t *b);
 
 void ext_block_serialize(const ext_block_t *b, FILE *stream);
 
-void ext_block_unserialize(ext_block_t *b, parser_t *p);
+bool ext_block_unserialize(ext_block_t *b, parser_t *p);
 
 void ext_block_write(const ext_block_t *b, FILE *stream);
 

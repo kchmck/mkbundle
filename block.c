@@ -78,12 +78,16 @@ bool block_unserialize(block_t *b, const char *buf, size_t len) {
     switch (b->type) {
     case BLOCK_TYPE_PRIMARY:
         primary_block_init(&b->primary);
-        primary_block_unserialize(&b->primary, &parser);
+
+        if (!primary_block_unserialize(&b->primary, &parser))
+            return false;
     break;
 
     case BLOCK_TYPE_EXT:
         ext_block_init(&b->ext);
-        ext_block_unserialize(&b->ext, &parser);
+
+        if (!ext_block_unserialize(&b->ext, &parser))
+            return false;
     break;
 
     case BLOCK_TYPE_INVALID:

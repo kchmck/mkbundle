@@ -16,6 +16,8 @@ typedef struct {
     size_t token;
     size_t token_count;
     const char *src;
+    // Whether an error occured in parser functions that return a parsed value.
+    bool error;
 } parser_t;
 
 // Initialize the given parser to a default state.
@@ -50,6 +52,6 @@ uint8_t parser_parse_u8(parser_t *p);
 uint32_t parser_parse_sym(parser_t *p, const char **syms, size_t sym_count);
 
 // Parse the current token as an EID. Abort on parse error.
-void parser_parse_eid(parser_t *p, eid_t *e);
+bool parser_parse_eid(parser_t *p, eid_t *e);
 
 #endif

@@ -135,20 +135,25 @@ void primary_block_serialize(const primary_block_t *b, FILE *stream) {
     );
 }
 
-static void parse_eids(strbuf_t **eids, parser_t *p) {
-    assert(p->cur->type == JSMN_ARRAY);
+static bool parse_eids(strbuf_t **eids, parser_t *p) {
+    if (p->cur->type != JSMN_ARRAY)
+        return false;
+
     int eid_count = p->cur->size;
 
     parser_advance(p);
 
     for (int i = 0; i < eid_count; i += 1) {
-        assert(p->cur->type == JSMN_STRING);
+        if (p->cur->type != JSMN_STRING)
+            return false;
 
         strbuf_append(eids, parser_cur_str(p), parser_cur_len(p));
         strbuf_finish(eids);
 
         parser_advance(p);
     }
+
+    return true;
 }
 
 #ifdef MKBUNDLE_TEST
@@ -164,7 +169,7 @@ TEST test_parse_eids(void) {
 
     ASSERT(parser_advance(&parser));
     ASSERT(parser_advance(&parser));
-    parse_eids(&buf, &parser);
+    ASSERT(parse_eids(&buf, &parser));
 
     ASSERT_EQ(buf->pos, 4);
     ASSERT_EQ(buf->buf[0], 'a');
@@ -176,7 +181,7 @@ TEST test_parse_eids(void) {
 }
 #endif
 
-void primary_block_unserialize(primary_block_t *b, parser_t *p) {
+bool primary_block_unserialize(primary_block_t *b, parser_t *p) {
     enum {
         SYM_VERSION,
         SYM_FLAGS,
@@ -210,7 +215,8 @@ void primary_block_unserialize(primary_block_t *b, parser_t *p) {
         [SYM_EIDS] = "eids",
     };
 
-    assert(parser_advance(p));
+    if (!parser_advance(p))
+        return false;
 
     // Bitmap where each bit represents if a symbol has been visited.
     uint32_t symbols = 0;
@@ -265,16 +271,20 @@ void primary_block_unserialize(primary_block_t *b, parser_t *p) {
         break;
 
         case SYM_EIDS:
-            parse_eids(&b->eid_buf, p);
+            if (!parse_eids(&b->eid_buf, p))
+                return false;
         break;
 
         case SYM_INVALID:
-            abort();
+            return false;
         break;
         }
+
+        if (p->error)
+            return false;
     }
 
-    assert(symbols == SYM_MASK);
+    return symbols == SYM_MASK;
 }
 
 #ifdef MKBUNDLE_TEST
@@ -289,8 +299,8 @@ TEST test_primary_block_unserialize(void) {
         " \"eids-size\": 42, \"eids\": [\"a\", \"b\"]}";
     parser_t parser;
     parser_init(&parser);
-    parser_parse(&parser, J, sizeof(J) - 1);
-    primary_block_unserialize(&block, &parser);
+    ASSERT(parser_parse(&parser, J, sizeof(J) - 1));
+    ASSERT(primary_block_unserialize(&block, &parser));
 
     primary_block_destroy(&block);
 

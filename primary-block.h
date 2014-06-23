@@ -60,7 +60,7 @@ void primary_block_destroy(primary_block_t *b);
 void primary_block_serialize(const primary_block_t *b, FILE *stream);
 
 // Unserialize a block from the given parser.
-void primary_block_unserialize(primary_block_t *b, parser_t *p);
+bool primary_block_unserialize(primary_block_t *b, parser_t *p);
 
 // Write the final binary form of the given block.
 void primary_block_write(const primary_block_t *b, FILE *stream);

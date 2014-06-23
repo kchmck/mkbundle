@@ -115,18 +115,24 @@ void ext_block_serialize(const ext_block_t *b, FILE *stream) {
     );
 }
 
-static void parse_refs(ext_block_t *b, parser_t *p) {
-    assert(p->cur->type == JSMN_ARRAY);
+static bool parse_refs(ext_block_t *b, parser_t *p) {
+    if (p->cur->type != JSMN_ARRAY)
+        return false;
+
     int ref_count = p->cur->size;
 
     parser_advance(p);
 
     for (int i = 0; i < ref_count; i += 1) {
         eid_t *eid = eid_refs_push(&b->refs);
-        assert(eid);
+
+        if (!eid)
+            return false;
 
         parser_parse_eid(p, eid);
     }
+
+    return true;
 }
 
 #ifdef MKBUNDLE_TEST
@@ -140,7 +146,7 @@ TEST test_parse_refs(void) {
     static const char J[] = "[[3, 2], [1, 0]]";
     ASSERT(parser_parse(&parser, J, sizeof(J)));
 
-    parse_refs(&block, &parser);
+    ASSERT(parse_refs(&block, &parser));
     ASSERT(block.refs.len == 2);
     ASSERT(block.refs.slots[0].scheme == 3);
     ASSERT(block.refs.slots[0].ssp == 2);
@@ -151,7 +157,7 @@ TEST test_parse_refs(void) {
 }
 #endif
 
-void ext_block_unserialize(ext_block_t *b, parser_t *p) {
+bool ext_block_unserialize(ext_block_t *b, parser_t *p) {
     enum {
         SYM_TYPE,
         SYM_FLAGS,
@@ -171,7 +177,8 @@ void ext_block_unserialize(ext_block_t *b, parser_t *p) {
         [SYM_REFS] = "refs",
     };
 
-    assert(parser_advance(p));
+    if (!parser_advance(p))
+        return false;
 
     uint32_t symbols = 0;
 
@@ -197,16 +204,20 @@ void ext_block_unserialize(ext_block_t *b, parser_t *p) {
         break;
 
         case SYM_REFS:
-            parse_refs(b, p);
+            if (!parse_refs(b, p))
+                return false;
         break;
 
         case SYM_INVALID:
-            abort();
+            return false;
         break;
         }
+
+        if (p->error)
+            return false;
     }
 
-    assert(symbols == SYM_MASK);
+    return symbols == SYM_MASK;
 }
 
 void ext_block_write(const ext_block_t *b, FILE *stream) {
