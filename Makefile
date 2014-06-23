@@ -39,4 +39,11 @@ test:
 %.o: %.c
 	$(CC) -c $(ALL_CFLAGS) $< -o $@
 
-.PHONY: all test
+clean:
+	$(MAKE) -C jsmn clean
+	-rm -f $(OBJ)
+
+distclean: clean
+	-rm -f $(BINARY)
+
+.PHONY: all test clean distclean
