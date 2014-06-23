@@ -181,8 +181,8 @@ TEST test_sdnv_len(void) {
 #endif
 
 sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
-    // The value of the "continue" bit.
-    enum { CONTINUE = 1 << 7 };
+// The value of the "continue" bit.
+#define CONTINUE (1u << 7)
 
     static const uint8_t MASKS[] = {
         0X7F, 0X3F, 0X1F, 0x0F,
@@ -214,14 +214,14 @@ sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
         // Mask off the bits to use from the current input byte and put them
         // where they should appear in the output byte.
         hi = (uint8_t)(bytes[i] & MASKS[bit]);
-        hi <<= bit;
+        hi = (uint8_t)(hi << bit);
 
         // Build the current output byte.
         out->bytes[j] = CONTINUE | hi | lo;
 
         // Save the bits that weren't used for the next iteration.
         lo = (uint8_t)(bytes[i] & ~MASKS[bit]);
-        lo >>= 7 - bit;
+        lo = (uint8_t)(lo >> (7u - bit));
 
         // On every 8 iterations, no bits of the current input byte are used, so
         // perform another iteration over the current input byte to get its bits.
@@ -243,12 +243,14 @@ sdnv_t *sdnv_encode(const uint8_t *bytes, size_t byte_count) {
     // visited in the loop above, so use its bits to fill the remaining space in
     // the most-significant output byte.
     if (params.compact)
-        out->bytes[0] |= bytes[i] << bit;
+        out->bytes[0] = (uint8_t)(out->bytes[0] | bytes[i] << bit);
 
     // Unset the continue bit on the last output byte.
-    out->bytes[params.len - 1] &= ~CONTINUE;
+    out->bytes[params.len - 1] &= (uint8_t) ~CONTINUE;
 
     return out;
+
+#undef CONTINUE
 }
 
 #ifdef MKBUNDLE_TEST
