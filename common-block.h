@@ -3,36 +3,34 @@
 #ifndef COMMON_BLOCK_H
 #define COMMON_BLOCK_H
 
-enum {
-    FLAG_DEFAULT = 0,
+#define FLAG_DEFAULT 0u
 
-    FLAG_IS_FRAGMENT = 1 << 0,
-    FLAG_ADMIN = 1 << 1,
-    FLAG_NO_FRAGMENT = 1 << 2,
-    FLAG_CUSTODY = 1 << 3,
-    FLAG_SINGLETON = 1 << 4,
-    FLAG_ACK = 1 << 5,
+#define FLAG_IS_FRAGMENT (1u << 0)
+#define FLAG_ADMIN (1u << 1)
+#define FLAG_NO_FRAGMENT (1u << 2)
+#define FLAG_CUSTODY (1u << 3)
+#define FLAG_SINGLETON (1u << 4)
+#define FLAG_ACK (1u << 5)
 
-    PRIO_RESET = ~(0x3 << 7),
-    PRIO_BULK = 0x0 << 7,
-    PRIO_NORMAL = 0x1 << 7,
-    PRIO_EXPEDITED = 0x2 << 7,
+#define PRIO_RESET ~(0x3u << 7)
+#define PRIO_BULK (0x0u << 7)
+#define PRIO_NORMAL (0x1u << 7)
+#define PRIO_EXPEDITED (0x2u << 7)
 
-    REPORT_RECEPTION = 1 << 14,
-    REPORT_CUSTODY = 1 << 15,
-    REPORT_FORWARDING = 1 << 16,
-    REPORT_DELIVERY = 1 << 17,
-    REPORT_DELETION = 1 << 18,
+#define REPORT_RECEPTION (1u << 14)
+#define REPORT_CUSTODY (1u << 15)
+#define REPORT_FORWARDING (1u << 16)
+#define REPORT_DELIVERY (1u << 17)
+#define REPORT_DELETION (1u << 18)
 
-    FLAG_REPLICATE = 1 << 0,
-    FLAG_TRANSMIT_STATUS = 1 << 1,
-    FLAG_DELETE_BUNDLE = 1 << 2,
-    FLAG_LAST_BLOCK = 1 << 3,
-    FLAG_DISCARD_BLOCK = 1 << 4,
-    FLAG_FORWARDED = 1 << 5,
-    FLAG_CONTAINS_REF = 1 << 6,
+#define FLAG_REPLICATE (1u << 0)
+#define FLAG_TRANSMIT_STATUS (1u << 1)
+#define FLAG_DELETE_BUNDLE (1u << 2)
+#define FLAG_LAST_BLOCK (1u << 3)
+#define FLAG_DISCARD_BLOCK (1u << 4)
+#define FLAG_FORWARDED (1u << 5)
+#define FLAG_CONTAINS_REF (1u << 6)
 
-    FLAG_INVALID = 1 << 31,
-};
+#define FLAG_INVALID (1u << 31)
 
 #endif
