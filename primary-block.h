@@ -14,6 +14,8 @@
 #define HTABLE_COMMON
 #include "htable.h"
 
+// Table key strings must be associated with a length, since they may not
+// necessarily be null terminated.
 typedef struct {
     const char *str;
     size_t len;
@@ -44,7 +46,9 @@ typedef struct {
     uint32_t lifetime;
     uint32_t eids_size;
 
+    // Maps EID strings to offsets inside eid_buf.
     eid_map_t *eid_map;
+    // Holds all EID strings.
     strbuf_t *eid_buf;
 } primary_block_t;
 

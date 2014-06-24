@@ -7,7 +7,7 @@
 
 #include "ext-block.h"
 
-// Signature of a command function and a help function.
+// Signatures of command and help functions.
 typedef void (*cmd_fn)(const char *name, int argc, char **argv);
 typedef void (*help_fn)(const char *name);
 

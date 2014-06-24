@@ -18,7 +18,7 @@
 #include "greatest.h"
 #endif
 
-// A Fowler/Noll/Vo hash function as detailed at
+// The Fowler/Noll/Vo-1a hash function as detailed at
 // http://www.isthe.com/chongo/tech/comp/fnv/
 static htable_hash_t fnv(const eid_table_str_t *key) {
     // Standard 32-bit offset basis.
