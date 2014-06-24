@@ -272,7 +272,7 @@ static void help_extension(const char *name) {
         "  eid-ref          block contains an EID-reference field\n"
         "BLOCK-TYPES\n"
         "  payload  a payload block\n"
-        "  phib     a PHIB block\n"
+        "  phib     a previous-hop insertion block\n"
         ,
         name
     );
