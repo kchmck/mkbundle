@@ -27,6 +27,20 @@ ALL_CFLAGS += $(CFLAGS)
 ALL_LDFLAGS += -Ljsmn -ljsmn
 ALL_LDFLAGS += $(LDFLAGS)
 
+ifeq ($(DEBUG), 1)
+    ALL_CFLAGS += -O0 -g
+endif
+
+ifeq ($(OPTIMIZE), 1)
+    ALL_CFLAGS += -flto -O2
+    ALL_LDFLAGS += -flto -O2
+endif
+
+ifeq ($(NATIVE), 1)
+    ALL_CFLAGS += -march=native
+    ALL_LDFLAGS += -march=native
+endif
+
 all: $(BINARY)
 
 $(BINARY): $(OBJ)
