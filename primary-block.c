@@ -98,6 +98,49 @@ static void serialize_eids(const strbuf_t *eids, FILE *stream) {
     }
 }
 
+#ifdef MKBUNDLE_TEST
+TEST test_serialize_eids(void) {
+    strbuf_t *sb;
+    strbuf_init(&sb, 16);
+
+    FILE *f = fopen("test", "w+");
+    char buf[256] = {0};
+
+    rewind(f);
+    serialize_eids(sb, f);
+
+    rewind(f);
+    fread(buf, sizeof(buf[0]), ASIZE(buf), f);
+    ASSERT_STR_EQ(buf, "");
+
+    strbuf_append(&sb, "a", 2);
+
+    rewind(f);
+    serialize_eids(sb, f);
+
+    rewind(f);
+    fread(buf, sizeof(buf[0]), ASIZE(buf), f);
+    ASSERT_STR_EQ(buf, "    \"a\"\n");
+
+    strbuf_append(&sb, "b", 2);
+    strbuf_append(&sb, "c", 2);
+
+    rewind(f);
+    serialize_eids(sb, f);
+
+    rewind(f);
+    fread(buf, sizeof(buf[0]), ASIZE(buf), f);
+    ASSERT_STR_EQ(buf, "    \"a\",\n"
+                       "    \"b\",\n"
+                       "    \"c\"\n");
+
+    strbuf_destroy(sb);
+    fclose(f);
+
+    PASS();
+}
+#endif
+
 void primary_block_serialize(const primary_block_t *b, FILE *stream) {
     fprintf(stream,
         "\"primary\": {\n"
@@ -428,6 +471,7 @@ TEST test_primary_block_add_eid(void) {
 #ifdef MKBUNDLE_TEST
 SUITE(primary_block_suite) {
     RUN_TEST(test_calc_length);
+    RUN_TEST(test_serialize_eids);
     RUN_TEST(test_parse_eids);
     RUN_TEST(test_primary_block_unserialize);
     RUN_TEST(test_add_eid);
