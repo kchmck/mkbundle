@@ -433,7 +433,6 @@ static void help_main(const char *name) {
         "  primary    create a primary block param file\n"
         "  extension  create an extension block param file\n"
         "  compile    compile a param file into binary\n"
-        "\n"
         "See the help for each command for more informantion on specific\n"
         "options.\n"
         ,
