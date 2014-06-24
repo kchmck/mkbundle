@@ -18,13 +18,9 @@
 #include "greatest.h"
 #endif
 
-enum { BUNDLE_VERSION_DEFAULT = 0x06 };
-
-#include "htable.c"
-
 // A Fowler/Noll/Vo hash function as detailed at
 // http://www.isthe.com/chongo/tech/comp/fnv/
-htable_hash_t fnv(const eid_table_str_t *key) {
+static htable_hash_t fnv(const eid_table_str_t *key) {
     // Standard 32-bit offset basis.
     htable_hash_t hval = 0x811c9dc5;
 
@@ -36,6 +32,10 @@ htable_hash_t fnv(const eid_table_str_t *key) {
 
     return hval;
 }
+
+#include "htable.c"
+
+enum { BUNDLE_VERSION_DEFAULT = 0x06 };
 
 static inline uint32_t calc_length(const primary_block_t *b) {
     return (uint32_t) (
