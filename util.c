@@ -45,7 +45,34 @@ void collect(strbuf_t **buf, FILE *stream) {
 }
 
 #ifdef MKBUNDLE_TEST
+TEST test_collect(void) {
+    FILE *f = fopen("test", "w+");
+
+    static const char S[] = "a\0b\0c";
+    rewind(f);
+    fwrite(S, sizeof(S[0]), ASIZE(S), f);
+
+    strbuf_t *sb;
+    strbuf_init(&sb, 16);
+
+    rewind(f);
+    collect(&sb, f);
+
+    ASSERT(sb->pos == 6);
+    ASSERT_STR_EQ(&sb->buf[0], "a");
+    ASSERT_STR_EQ(&sb->buf[2], "b");
+    ASSERT_STR_EQ(&sb->buf[4], "c");
+
+    strbuf_destroy(sb);
+    fclose(f);
+
+    PASS();
+}
+#endif
+
+#ifdef MKBUNDLE_TEST
 SUITE(util_suite) {
     RUN_TEST(test_sym_parse);
+    RUN_TEST(test_collect);
 }
 #endif
