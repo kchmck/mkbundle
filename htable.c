@@ -88,7 +88,7 @@ static HTABLE_T *HTABLE_ALLOC(HTABLE_T *ht, size_t size) {
   //          AND 1010 1110 0010 = 2786
   //            = 0000 0110 0010 = 98
   //
-  ht->mask = size - 1;
+  ht->mask = (htable_hash_t) size - 1;
 
   // Zero all hashes so the table appears empty.
   memset(ht->slots, 0, nbytes);
