@@ -41,6 +41,8 @@ ifeq ($(NATIVE), 1)
     ALL_LDFLAGS += -march=native
 endif
 
+PREFIX = /usr/local
+
 all: $(BINARY)
 
 $(BINARY): $(OBJ)
@@ -53,6 +55,12 @@ test:
 %.o: %.c
 	$(CC) -c $(ALL_CFLAGS) $< -o $@
 
+install: $(BINARY)
+	install -D -m 755 $< "$(DESTDIR)$(PREFIX)/bin/mkbundle"
+
+uninstall:
+	rm "$(DESTDIR)$(PREFIX)/bin/mkbundle"
+
 clean:
 	$(MAKE) -C jsmn clean
 	-rm -f $(OBJ)
@@ -60,4 +68,4 @@ clean:
 distclean: clean
 	-rm -f $(BINARY)
 
-.PHONY: all test clean distclean
+.PHONY: all test clean distclean install uninstall
