@@ -25,7 +25,7 @@ typedef struct {
 #define HTABLE_RESET
 #include "htable.h"
 #define HTABLE_NAME eid_map
-#define HTABLE_KEY_TYPE const eid_table_str_t *
+#define HTABLE_KEY_TYPE eid_table_str_t *
 #define HTABLE_DATA_TYPE size_t
 #define HTABLE_DEFAULT_SIZE (1u << 6)
 #define HTABLE_HASH_KEY(key) fnv(key)
