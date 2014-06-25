@@ -144,7 +144,7 @@ static void cmd_primary(const char *name, int argc, char **argv) {
         {"creation-ts", required_argument, NULL, OPT_CREATION_TS},
         {"creation-seq", required_argument, NULL, OPT_CREATION_SEQ},
         {"lifetime", required_argument, NULL, OPT_LIFETIME},
-        {0},
+        {0, 0, 0 ,0},
     };
 
     FILE *out = stdout;
@@ -294,7 +294,7 @@ static void cmd_extension(const char *name, int argc, char **argv) {
         {"flag", required_argument, NULL, OPT_FLAG},
         {"ref", required_argument, NULL, OPT_REF},
         {"payload-length", required_argument, NULL, OPT_PAYLOAD_LENGTH},
-        {0},
+        {0, 0, 0, 0},
     };
 
     FILE *out = stdout;
@@ -378,7 +378,7 @@ static void cmd_compile(const char *name, int argc, char **argv) {
 
     static const struct option OPTIONS[] = {
         {"help", no_argument, NULL, OPT_HELP},
-        {0},
+        {0, 0, 0, 0},
     };
 
     FILE *in = stdin;

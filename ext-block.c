@@ -263,7 +263,7 @@ static bool parse_ref(eid_t *e, const char *str) {
 
 #ifdef MKBUNDLE_TEST
 TEST test_parse_ref(void) {
-    eid_t eid = {0};
+    eid_t eid = {0, 0};
 
     ASSERT(!parse_ref(&eid, "4"));
     ASSERT(!parse_ref(&eid, ":2"));

@@ -17,7 +17,7 @@
 
 void parser_init(parser_t *p) {
     *p = (parser_t) {
-        .tokens = {{0}},
+        .tokens = {{0, 0, 0, 0}},
         .error = false,
     };
 }

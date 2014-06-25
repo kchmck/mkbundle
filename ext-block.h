@@ -17,7 +17,7 @@
 // With 4 possible schemes and 4 possible SSPs in the primary bundle, there
 // are 16 possible different references.
 #define ALIST_CAP 16
-#define ALIST_SLOT_INIT {0}
+#define ALIST_SLOT_INIT {.scheme = 0, .ssp = 0}
 #include "alist.h"
 
 typedef enum {
