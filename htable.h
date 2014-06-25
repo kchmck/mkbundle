@@ -76,6 +76,10 @@
 #include <inttypes.h>
 #include <stddef.h>
 
+#ifndef static_assert
+#define static_assert _Static_assert
+#endif
+
 // A lookahead bitmap
 typedef uint_fast32_t htable_fwd_t;
 // The hash of a key
